@@ -18,6 +18,19 @@
     "@vue/cli-service": "^3.0.0-beta.9",
     "vue-template-compiler": "^2.5.13"
   },
+  "vue": {
+    "devServer": {
+      "proxy": {
+        "/api": {
+          "target": "http://localhost:8081",
+          "changeOrigin": true,
+          "pathRewrite": {
+            "^/api": ""
+          }
+        }
+      }
+    }
+  },
   "babel": {
     "presets": [
       "@vue/app"
@@ -28,7 +41,16 @@
     "extends": [
       "plugin:vue/essential",
       "eslint:recommended"
-    ]
+    ],
+    "parserOptions": {
+      "ecmaVersion": 2017
+    },
+    "env": {
+      "node": true
+    },
+    "rules": {
+      "no-console": ["error", { "allow": ["warn", "error"] }]
+    }
   },
   "postcss": {
     "plugins": {

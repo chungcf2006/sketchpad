@@ -1,0 +1,3 @@
+(pgrep ssh | kill) && ssh -fNT -L 5432:127.0.0.1:5432 csci4140@csci4140.southeastasia.cloudapp.azure.com
+cd api && pm2 start index.js --watch --name=api
+cd .. && npm run serve
