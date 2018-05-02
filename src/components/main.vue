@@ -6,11 +6,11 @@
 		<div class="container">
 			<div class="colorside" id="colorside">
 				<canvas id="user_pen"></canvas>
-			</div> 
+			</div>
 			<div class="leftside" id="leftside">
-                <button id="clear" class="glyphicon glyphicon-trash"></button>
-                <button id="view" class="glyphicon glyphicon-eye-open"></button>
-                <button id="download" class="glyphicon glyphicon-download"></button>
+                <button id="clear" class="fas fa-trash"></button>
+                <button id="view" class="fas fa-eye"></button>
+                <button id="download" class="fas fa-download"></button>
                 <input id="dia" type="range" min="1" max="10" step="0.1" value="5" />
                 <input id="r" type="range" min="0" max="255" value="0" />
                 <input id="g" type="range" min="0" max="255" value="0" />
@@ -24,8 +24,9 @@
 </template>
 
 <script>
+
 	export default{
-		name: 'main1',
+		name: 'Main',
 		data () {
 			return {
 				roomNumber: '13F3D2'
@@ -81,7 +82,7 @@
 		height: 5px;
 		margin-top: 10px;
 		margin-bottom: 15px;
-		border-radius: 5px;   
+		border-radius: 5px;
 		background: #d3d3d3;
 		outline: none;
 		opacity: 0.7;
@@ -93,7 +94,7 @@
 		appearance: none;
 		width: 15px;
 		height: 15px;
-		border-radius: 50%; 
+		border-radius: 50%;
 		background: #ff2020;
 		cursor: pointer;
 	}
@@ -109,7 +110,7 @@
 		appearance: none;
 		width: 15px;
 		height: 15px;
-		border-radius: 50%; 
+		border-radius: 50%;
 		background: #337ab7;
 		cursor: pointer;
 	}
@@ -132,7 +133,7 @@
 		appearance: none;
 		width: 15px;
 		height: 15px;
-		border-radius: 50%; 
+		border-radius: 50%;
 		background: #6fa93d;
 		cursor: pointer;
 	}

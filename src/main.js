@@ -5,6 +5,7 @@ import VueRouter from 'vue-router'
 
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
+import 'font-awesome/css/font-awesome.min.css'
 
 Vue.config.productionTip = false
 
@@ -14,12 +15,12 @@ Vue.use(VueRouter)
 
 import App from './App.vue'
 import Welcome from './components/Welcome.vue'
-import HelloWorld from './components/HelloWorld.vue'
+import Main from './components/Main.vue'
 
 const router = new VueRouter({
   routes: [
     { path: '/', component: Welcome },
-    { path: '/hello', component: HelloWorld }
+    { path: '/main', component: Main }
   ]
 })
 
