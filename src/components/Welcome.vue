@@ -23,9 +23,6 @@
 <script>
 export default {
   name: 'Welcome',
-  props: {
-    msg: String
-  },
   data () {
     return {
       mode: undefined,
