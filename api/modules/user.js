@@ -4,7 +4,7 @@ const app = Express()
 
 app.get('/', async function (req, res) {
   try {
-    const result = await db.any('SELECT * FROM "user"')
+    const result = await db.any('SELECT username, email, screenname FROM "user"')
     res.json(result)
   } catch (error) {
     console.error(error)
@@ -15,7 +15,7 @@ app.get('/', async function (req, res) {
 app.get('/:username', async function (req, res) {
   try {
     const username = req.params.username
-    const result = await db.any('SELECT * FROM "user" WHERE username=$1', username)
+    const result = await db.any('SELECT username, email, screenname FROM "user" WHERE username=$1', username)
     res.json(result)
   } catch (error) {
     console.error(error)
