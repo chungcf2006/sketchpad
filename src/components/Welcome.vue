@@ -9,12 +9,12 @@
       <b-alert show v-if="mode === 'join'" key="join" class="detail-dialog">
         <b-form-input v-model="roomNumber" class="roomNumber-input" type="text" placeholder="Enter Room Number"></b-form-input>
         <b-button class="mode" variant="success" @click="joinRoom()">Join Room</b-button>
-        <b-button class="mode" variant="secondary" @click="create()">Create Room</b-button>
+        <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
       </b-alert>
       <b-alert show v-if="mode === 'create'" key="create" class="detail-dialog">
-        <div>Your Room Number: <strong>{{roomNumber}}</strong></div>
+        <div>Your Room Number: <strong>{{newRoomNumber}}</strong></div>
         <b-button class="mode" variant="success" @click="joinRoom()">Enter Room</b-button>
-        <b-button class="mode" variant="secondary" @click="join()">Join Room</b-button>
+        <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
       </b-alert>
     </transition>
   </b-alert>
@@ -29,7 +29,8 @@ export default {
   data () {
     return {
       mode: undefined,
-      roomNumber: '13F3D2'
+      roomNumber: undefined,
+      newRoomNumber: undefined
     }
   },
   methods: {
@@ -37,13 +38,18 @@ export default {
       this.mode = 'join'
     },
     create () {
+      this.newRoomNumber = Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
       this.mode = 'create'
     },
+    joinRoom () {
+      this.$router.push('/hi')
+    }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+
   .dialog {
     .slide-fade-enter-active, .slide-fade-leave-active { transition: all .3s ease; }
     .slide-fade-enter { transform: translateY(0.5em); opacity: 0; }
