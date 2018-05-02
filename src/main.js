@@ -14,13 +14,13 @@ Vue.use(VueResource)
 Vue.use(VueRouter)
 
 import App from './App.vue'
-import Welcome from './components/Welcome.vue'
+import Welcome from './components/Main.vue'
 import Main from './components/Main.vue'
 
 const router = new VueRouter({
   routes: [
     { path: '/', component: Welcome },
-    { path: '/main', component: Main }
+    { path: '/Main', component: Main }
   ]
 })
 

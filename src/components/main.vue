@@ -24,13 +24,20 @@
 </template>
 
 <script>
-
 	export default{
 		name: 'Main',
 		data () {
 			return {
-				roomNumber: '13F3D2'
+				roomNumber: '13F3D2',
+				canvas: undefined,
+				ctx: undefined
 			}
+		},
+		methods:{
+			pageInit: 
+		},
+		ready() {
+			this.pageInit()
 		}
 	}
 </script>
