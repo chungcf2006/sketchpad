@@ -17,13 +17,16 @@
                 <input id="b" type="range" min="0" max="255" value="0" />
             </div>
             <div class="rightside" id="rightside">
-                <div class="console_box" id="console_box" v-html="console"></div>
+                <div class="console_box" id="console_box">
+									<div v-for="entry in console_box">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
+								</div>
             </div>
 		</div>
 	</div>
 </template>
 
 <script>
+	import moment from 'moment'
 	export default{
 		name: 'Main',
 		data () {
@@ -38,12 +41,12 @@
 					year: "numberic", month: "numberic", day: "numberic",
 					hour: "numberic", minute: "numberic", second: "numberic"
 				},
-				console: ""
+				console_box: []
 			}
 		},
 		methods:{
 			distanceBetween (point1, point2) {
-				return Math.sqrt(Math.pow(point2.x - point1.x, 2) 
+				return Math.sqrt(Math.pow(point2.x - point1.x, 2)
 					+ Math.pow(point2.y - point1.y, 2));
 			},
 			angleBetween (point1, point2) {
@@ -58,8 +61,8 @@
 			},
 			pageInit () {
 				console.log(this.roomNumber, this.options)
-				this.console = "123<br/>" + this.console
-				this.console = "123<br/>" + this.console
+				this.console_box.unshift({date: moment().format('YYYY-MM-DD HH:mm:ss'), activity: 'on99'})
+				this.console_box.unshift({date: moment().format('YYYY-MM-DD HH:mm:ss'), activity: 'on11'})
 			}
 		},
 		mounted() {
