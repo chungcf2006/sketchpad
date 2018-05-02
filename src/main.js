@@ -2,16 +2,22 @@ import Vue from 'vue'
 import BootstrapVue from 'bootstrap-vue'
 import VueResource from 'vue-resource'
 import VueRouter from 'vue-router'
+import fontawesome from '@fortawesome/fontawesome'
+import FontAwesomeIcon from '@fortawesome/vue-fontawesome'
+import solid from '@fortawesome/fontawesome-free-solid'
 
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
-import 'font-awesome/css/font-awesome.min.css'
+
+fontawesome.library.add(solid)
 
 Vue.config.productionTip = false
 
 Vue.use(BootstrapVue)
 Vue.use(VueResource)
 Vue.use(VueRouter)
+
+Vue.component('font-awesome-icon', FontAwesomeIcon)
 
 import App from './App.vue'
 import Welcome from './components/Welcome.vue'

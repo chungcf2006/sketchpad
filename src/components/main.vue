@@ -8,9 +8,9 @@
 				<canvas id="user_pen"></canvas>
 			</div>
 			<div class="leftside" id="leftside">
-                <button id="clear" class="fas fa-trash"></button>
-                <button id="view" class="fas fa-eye"></button>
-                <button id="download" class="fas fa-download"></button>
+                <button id="clear"><font-awesome-icon :icon="['fas', 'trash']" /></button>
+                <button id="view"><font-awesome-icon :icon="['fas', 'eye']" /></button>
+                <button id="download"><font-awesome-icon :icon="['fas', 'download']" /></button>
                 <input id="dia" type="range" min="1" max="10" step="0.1" value="5" />
                 <input id="r" type="range" min="0" max="255" value="0" />
                 <input id="g" type="range" min="0" max="255" value="0" />
@@ -24,7 +24,6 @@
 </template>
 
 <script>
-
 	export default{
 		name: 'Main',
 		data () {
