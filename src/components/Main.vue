@@ -18,8 +18,8 @@
             </div>
             <div class="rightside" id="rightside">
                 <div class="console_box" id="console_box">
-									<div v-for="entry in console_box">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
-								</div>
+					<div v-for="entry in console_box" :key="entry.date">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
+				</div>
             </div>
 		</div>
 	</div>
@@ -105,7 +105,6 @@
 	.rightside {
 		width:auto;
 		height:30%;
-		background-color:#c29cc7;
 		overflow:auto;
 	}
 	#sketchpad {
