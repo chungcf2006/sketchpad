@@ -17,7 +17,7 @@
                 <input id="b" type="range" min="0" max="255" value="0" />
             </div>
             <div class="rightside" id="rightside">
-                <div class="console_box" id="console_box"></div>
+                <div class="console_box" id="console_box" v-html="console"></div>
             </div>
 		</div>
 	</div>
@@ -29,14 +29,40 @@
 		data () {
 			return {
 				roomNumber: '13F3D2',
-				canvas: undefined,
-				ctx: undefined
+				canvas: undefined, ctx: undefined,
+				canvas_color: undefined, ctx_color: undefined,
+				dia: 255, r: 255, b: 255, g: 255,
+				mouseX: 0, mouseY: 0, mouseDown: 0,
+				isDrawing: undefined, lastPoint: undefined,
+				options: {
+					year: "numberic", month: "numberic", day: "numberic",
+					hour: "numberic", minute: "numberic", second: "numberic"
+				},
+				console: ""
 			}
 		},
 		methods:{
-			pageInit: 
+			distanceBetween (point1, point2) {
+				return Math.sqrt(Math.pow(point2.x - point1.x, 2) 
+					+ Math.pow(point2.y - point1.y, 2));
+			},
+			angleBetween (point1, point2) {
+				return Math.atan2( point2.x - point1.x
+					, point2.y - point1.y );
+			},
+			sketchpad_mouseDown (e) {
+				this.isDrawing = true;
+				this.lastPoint = { x: e.clientX, y:e.clientY};
+
+				this.console = "123\n" + this.console
+			},
+			pageInit () {
+				console.log(this.roomNumber, this.options)
+				this.console = "123<br/>" + this.console
+				this.console = "123<br/>" + this.console
+			}
 		},
-		ready() {
+		mounted() {
 			this.pageInit()
 		}
 	}
