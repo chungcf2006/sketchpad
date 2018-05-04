@@ -1,23 +1,23 @@
 <template>
-	<div class="parent">
-		<div class="sketchpadapp" id="sketchpadapp">
+	<div class="parent" ref="parent">
+		<div id="sketchpadapp" ref="sketchpad">
 			<b-alert show>Room Number: {{roomNumber}}</b-alert>
 		</div>
-		<div class="container">
-			<div class="colorside" id="colorside">
-				<canvas id="user_pen"></canvas>
+		<div class="container" ref="container">
+			<div class="colorside" ref="colorside">
+				<canvas id="color" ref="local_pen"></canvas>
 			</div>
-			<div class="leftside" id="leftside">
-                <button id="clear"><font-awesome-icon :icon="['fas', 'trash']" /></button>
-                <button id="view"><font-awesome-icon :icon="['fas', 'eye']" /></button>
-                <button id="download"><font-awesome-icon :icon="['fas', 'download']" /></button>
-                <input id="dia" type="range" min="1" max="10" step="0.1" value="5" />
-                <input id="r" type="range" min="0" max="255" value="0" />
-                <input id="g" type="range" min="0" max="255" value="0" />
-                <input id="b" type="range" min="0" max="255" value="0" />
+			<div class="leftside" ref="leftside">
+                <button id="clear" ref="clear"><font-awesome-icon :icon="['fas', 'trash']" /></button>
+                <button id="view" ref="view"><font-awesome-icon :icon="['fas', 'eye']" /></button>
+                <button id="download" ref="download"><font-awesome-icon :icon="['fas', 'download']" /></button>
+                <input id="dia" ref="dia" v-on:click="set_dia()" type="range" min="1" max="10" step="0.1" value="5" />
+                <input id="r" ref="r" v-on:click="set_r()" type="range" min="0" max="255" value="0" />
+                <input id="g" ref="g" v-on:click="set_g()" type="range" min="0" max="255" value="0" />
+                <input id="b" ref="b" v-on:click="set_b()" type="range" min="0" max="255" value="0" />
             </div>
-            <div class="rightside" id="rightside">
-                <div class="console_box" id="console_box">
+            <div class="rightside" ref="rightside">
+                <div class="console_box" id="console_box" ref="console_box">
 					<div v-for="entry in console_box" :key="entry.date">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
 				</div>
             </div>
@@ -32,15 +32,15 @@
 		data () {
 			return {
 				roomNumber: '13F3D2',
+				local_user: 'Yu',
+				local_screenWidth: document.body.clientWidth,
+
 				canvas: undefined, ctx: undefined,
 				canvas_color: undefined, ctx_color: undefined,
-				dia: 255, r: 255, b: 255, g: 255,
+				dia: undefined, r: undefined, b: undefined, g: undefined, a: 255,
 				mouseX: 0, mouseY: 0, mouseDown: 0,
 				isDrawing: undefined, lastPoint: undefined,
-				options: {
-					year: "numberic", month: "numberic", day: "numberic",
-					hour: "numberic", minute: "numberic", second: "numberic"
-				},
+				date_format: 'YYYY-MM-DD HH:mm:ss',
 				console_box: []
 			}
 		},
@@ -53,20 +53,110 @@
 				return Math.atan2( point2.x - point1.x
 					, point2.y - point1.y );
 			},
+			drawDot(ctx, x, y, size){
+				// Select a fill style
+				ctx.fillStyle = "rgba("+this.r+","+this.g+","+this.b+","+(this.a/255)+")";
+				//Draw a filled circle
+				ctx.beginPath();
+				ctx.arc(x, y, size, 0, Math.PI*2, true); 
+				ctx.closePath();
+				ctx.fill();
+			},
 			sketchpad_mouseDown (e) {
 				this.isDrawing = true;
 				this.lastPoint = { x: e.clientX, y:e.clientY};
-
-				this.console = "123\n" + this.console
+				this.console_box.unshift({date: moment().format(this.date_format)});
+				this.console_box.unshift({date: moment().format(this.date_format), activity: 'Key Down'});
 			},
-			pageInit () {
-				console.log(this.roomNumber, this.options)
-				this.console_box.unshift({date: moment().format('YYYY-MM-DD HH:mm:ss'), activity: 'on99'})
-				this.console_box.unshift({date: moment().format('YYYY-MM-DD HH:mm:ss'), activity: 'on11'})
+			sketchpad_mouseMove (e) {
+				if (!this.isDrawing) return;
+				var currentPoint = { x: e.clientX, y: e.clientY };
+				var dist = this.distanceBetween(this.lastPoint, currentPoint);
+				var angle = this.angleBetween(this.lastPoint, currentPoint);
+				var x = null;
+				var y = null;
+
+				for (var i = 0; i < dist; i+=2) {
+					x = this.lastPoint.x + (Math.sin(angle) * i);
+					y = this.lastPoint.y + (Math.cos(angle) * i);
+					this.drawDot(this.ctx, x, y, this.dia);
+					this.console_box.unshift({date: moment().format(this.date_format), activity: "(" +  + x.toFixed(2) + ", " + y.toFixed(2) + ")"});
+				}
+				this.lastPoint = currentPoint;
+			},
+			sketchpad_mouseUp () {
+				this.isDrawing = false;
+				this.console_box.unshift({date: moment().format(this.date_format), activity: 'Key Up'});
+			},
+			clearCanvas (canvas, ctx) {
+				ctx.clearRect(0, 0, 
+					canvas.width, canvas.height);
+			},
+			set_dia () {
+				console.log(this.$refs.local_pen)
+				this.canvas_color.width = this.$refs.colorside.width;
+				this.canvas_color.height = this.$refs.colorside.height;
+				this.dia = this.$refs.dia.value;
+				this.drawDot(this.ctx_color, this.$refs.colorside.width/2, this.$refs.colorside.height/2, this.dia);
+				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set diameter: " + this.dia});
+			},
+			set_b () {
+				this.canvas_color.width = this.$refs.colorside.width;
+				this.canvas_color.height = this.$refs.colorside.height;
+				this.b = this.$refs.b.value;
+				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set blue: " + this.b});
+			},
+			set_r () {
+				this.canvas_color.width = this.$refs.colorside.width;
+				this.canvas_color.height = this.$refs.colorside.height;
+				this.r = this.$refs.r.value;
+				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set green: " + this.r});
+			},
+			set_g () {
+				this.canvas_color.width = this.$refs.colorside.width;
+				this.canvas_color.height = this.$refs.colorside.height;
+				this.g = this.$refs.g.value;
+				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set green: " + this.g});
+			},
+			defineSketchpad () {
+				this.canvas = this.$refs.sketchpad;
+				if(this.canvas.getContext){
+					this.ctx = this.canvas.getContext('2d');
+					this.canvas.width = 5000; 
+					this.canvas.height = 5000;
+				}
+				if(this.ctx){
+					this.canvas.addEventListener('mousedown', this.sketchpad_mouseDown, false);
+					this.canvas.addEventListener('mousemove', this.sketchpad_mouseMove, false);
+					this.canvas.addEventListener('mouseup', this.sketchpad_mouseUp, false);
+				}
+			},
+			defineColor () {
+				this.canvas_color = this.$refs.local_pen;
+				if (this.canvas_color.getContext){
+					this.ctx_color = this.canvas_color.getContext('2d');
+					this.canvas_color.width = this.$refs.colorside.width;
+					this.canvas_color.height = this.$refs.colorside.height;
+				}
+				this.drawDot(this.ctx_color, this.$refs.colorside.width/2, this.$refs.colorside.height/2, this.dia);
 			}
 		},
 		mounted() {
-			this.pageInit()
+			this.$refs.r.value = (Math.random()*200);
+			this.$refs.g.value = (Math.random()*200);
+			this.$refs.b.value = (Math.random()*200);
+			this.r = this.$refs.r.value;
+			this.g = this.$refs.g.value;
+			this.b = this.$refs.b.value;
+			this.dia = this.$refs.dia.value;
+
+			this.defineSketchpad();
+			this.defineColor();
+
+			//on resize
+			// this.clearCanvas(this.canvas_color, this.ctx_color);
+
+			this.console_box.unshift({date: moment().format(this.date_format), activity: "welcome, " + this.local_user + "!"});
 		}
 	}
 </script>
