@@ -1,26 +1,31 @@
 <template>
-	<div class="parent" ref="parent">
-		<div id="sketchpadapp" ref="sketchpad">
-			<b-alert show>Room Number: {{roomNumber}}</b-alert>
+	<div class="parent">
+		<div id="sketchpadapp" >
+			<canvas ref="sketchpad"  @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
 		</div>
-		<div class="container" ref="container">
+		<div class="panel">
 			<div class="colorside" ref="colorside">
 				<canvas id="color" ref="local_pen"></canvas>
 			</div>
 			<div class="leftside" ref="leftside">
-                <button id="clear" ref="clear"><font-awesome-icon :icon="['fas', 'trash']" /></button>
-                <button id="view" ref="view"><font-awesome-icon :icon="['fas', 'eye']" /></button>
-                <button id="download" ref="download"><font-awesome-icon :icon="['fas', 'download']" /></button>
-                <input id="dia" ref="dia" v-on:click="set_dia()" type="range" min="1" max="10" step="0.1" value="5" />
-                <input id="r" ref="r" v-on:click="set_r()" type="range" min="0" max="255" value="0" />
-                <input id="g" ref="g" v-on:click="set_g()" type="range" min="0" max="255" value="0" />
-                <input id="b" ref="b" v-on:click="set_b()" type="range" min="0" max="255" value="0" />
-            </div>
-            <div class="rightside" ref="rightside">
-                <div class="console_box" id="console_box" ref="console_box">
-					<div v-for="entry in console_box" :key="entry.date">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
+        <b-button id="clear"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
+        <b-button id="view"><font-awesome-icon :icon="['fas', 'eye']" /></b-button>
+				<b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+				<div>
+					<b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+	        <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
 				</div>
-            </div>
+        <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="10" step="0.1" />{{pen.dia}}</div>
+        <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
+        <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
+        <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
+      </div>
+      <div class="rightside" ref="rightside">
+        <div class="console_box" id="console_box" ref="console_box">
+					<div v-for="(entry, index) in console_box" :key="index">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
+				</div>
+      </div>
+			<b-alert show class="header">Room Number: {{roomNumber}}</b-alert>
 		</div>
 	</div>
 </template>
@@ -31,132 +36,125 @@
 		name: 'Main',
 		data () {
 			return {
-				roomNumber: '13F3D2',
 				local_user: 'Yu',
 				local_screenWidth: document.body.clientWidth,
-
-				canvas: undefined, ctx: undefined,
-				canvas_color: undefined, ctx_color: undefined,
-				dia: undefined, r: undefined, b: undefined, g: undefined, a: 255,
-				mouseX: 0, mouseY: 0, mouseDown: 0,
+				sketchpad: {canvas: undefined, ctx: undefined, mode: 'brush'},
+				pen_preview: {canvas: undefined, ctx: undefined},
+				pen: {dia: 5, r: undefined, b: undefined, g: undefined, a: 255},
+				mouse: {x: 0, y: 0, down: 0},
 				isDrawing: undefined, lastPoint: undefined,
 				date_format: 'YYYY-MM-DD HH:mm:ss',
 				console_box: []
 			}
 		},
+		computed: {
+			roomNumber () {
+				return this.$store.state.roomNumber
+			}
+		},
+		watch: {
+			pen: {
+				handler: function () {
+					this.clearCanvas(this.pen_preview.canvas, this.pen_preview.ctx)
+					this.drawDot(this.pen_preview.ctx)
+				},
+				deep: true
+			},
+			'sketchpad.mode': function () {
+				if (this.sketchpad.mode === 'brush') {
+					this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+				}
+				if (this.sketchpad.mode === 'eraser') {
+					this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+				}
+			}
+		},
 		methods:{
+			log (content) {
+				this.console_box.unshift({date: moment().format(this.date_format), activity: content})
+			},
 			distanceBetween (point1, point2) {
-				return Math.sqrt(Math.pow(point2.x - point1.x, 2)
-					+ Math.pow(point2.y - point1.y, 2));
+				return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
 			},
 			angleBetween (point1, point2) {
-				return Math.atan2( point2.x - point1.x
-					, point2.y - point1.y );
+				return Math.atan2( point2.x - point1.x, point2.y - point1.y );
 			},
-			drawDot(ctx, x, y, size){
+			drawDot(ctx, coordinate){
+				if (coordinate === undefined) {
+					coordinate = {x: this.pen_preview.canvas.width/2, y: this.pen_preview.canvas.height/2}
+				}
 				// Select a fill style
-				ctx.fillStyle = "rgba("+this.r+","+this.g+","+this.b+","+(this.a/255)+")";
+				ctx.fillStyle = `rgba(${this.pen.r}, ${this.pen.g}, ${this.pen.b}, ${this.pen.a/255})`;
 				//Draw a filled circle
 				ctx.beginPath();
-				ctx.arc(x, y, size, 0, Math.PI*2, true); 
+				ctx.arc(coordinate.x, coordinate.y, this.pen.dia, 0, Math.PI*2, true);
 				ctx.closePath();
 				ctx.fill();
 			},
 			sketchpad_mouseDown (e) {
 				this.isDrawing = true;
 				this.lastPoint = { x: e.clientX, y:e.clientY};
-				this.console_box.unshift({date: moment().format(this.date_format)});
-				this.console_box.unshift({date: moment().format(this.date_format), activity: 'Key Down'});
 			},
 			sketchpad_mouseMove (e) {
 				if (!this.isDrawing) return;
 				var currentPoint = { x: e.clientX, y: e.clientY };
+				if (this.lastPoint === undefined) {
+					this.lastPoint = currentPoint
+				}
 				var dist = this.distanceBetween(this.lastPoint, currentPoint);
 				var angle = this.angleBetween(this.lastPoint, currentPoint);
-				var x = null;
-				var y = null;
 
 				for (var i = 0; i < dist; i+=2) {
-					x = this.lastPoint.x + (Math.sin(angle) * i);
-					y = this.lastPoint.y + (Math.cos(angle) * i);
-					this.drawDot(this.ctx, x, y, this.dia);
-					this.console_box.unshift({date: moment().format(this.date_format), activity: "(" +  + x.toFixed(2) + ", " + y.toFixed(2) + ")"});
+					const coordinate = {
+						x: this.lastPoint.x + (Math.sin(angle) * i),
+						y: this.lastPoint.y + (Math.cos(angle) * i)
+					}
+					this.drawDot(this.sketchpad.ctx, coordinate);
+					// this.log(`(${coordinate.x.toFixed(2)}, ${coordinate.y.toFixed(2)})`);
 				}
 				this.lastPoint = currentPoint;
 			},
 			sketchpad_mouseUp () {
 				this.isDrawing = false;
-				this.console_box.unshift({date: moment().format(this.date_format), activity: 'Key Up'});
+				this.log('Key Up');
 			},
 			clearCanvas (canvas, ctx) {
-				ctx.clearRect(0, 0, 
-					canvas.width, canvas.height);
-			},
-			set_dia () {
-				console.log(this.$refs.local_pen)
-				this.canvas_color.width = this.$refs.colorside.width;
-				this.canvas_color.height = this.$refs.colorside.height;
-				this.dia = this.$refs.dia.value;
-				this.drawDot(this.ctx_color, this.$refs.colorside.width/2, this.$refs.colorside.height/2, this.dia);
-				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set diameter: " + this.dia});
-			},
-			set_b () {
-				this.canvas_color.width = this.$refs.colorside.width;
-				this.canvas_color.height = this.$refs.colorside.height;
-				this.b = this.$refs.b.value;
-				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set blue: " + this.b});
-			},
-			set_r () {
-				this.canvas_color.width = this.$refs.colorside.width;
-				this.canvas_color.height = this.$refs.colorside.height;
-				this.r = this.$refs.r.value;
-				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set green: " + this.r});
-			},
-			set_g () {
-				this.canvas_color.width = this.$refs.colorside.width;
-				this.canvas_color.height = this.$refs.colorside.height;
-				this.g = this.$refs.g.value;
-				this.console_box.unshift({date: moment().format(this.date_format), activity: "Set green: " + this.g});
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
 			},
 			defineSketchpad () {
-				this.canvas = this.$refs.sketchpad;
-				if(this.canvas.getContext){
-					this.ctx = this.canvas.getContext('2d');
-					this.canvas.width = 5000; 
-					this.canvas.height = 5000;
-				}
-				if(this.ctx){
-					this.canvas.addEventListener('mousedown', this.sketchpad_mouseDown, false);
-					this.canvas.addEventListener('mousemove', this.sketchpad_mouseMove, false);
-					this.canvas.addEventListener('mouseup', this.sketchpad_mouseUp, false);
+				this.sketchpad.canvas = this.$refs.sketchpad;
+				this.sketchpad.canvas.width = this.sketchpad.canvas.offsetWidth;
+				this.sketchpad.canvas.height = this.sketchpad.canvas.offsetHeight;
+				if(this.sketchpad.canvas.getContext){
+					this.sketchpad.ctx = this.sketchpad.canvas.getContext('2d');
 				}
 			},
 			defineColor () {
-				this.canvas_color = this.$refs.local_pen;
-				if (this.canvas_color.getContext){
-					this.ctx_color = this.canvas_color.getContext('2d');
-					this.canvas_color.width = this.$refs.colorside.width;
-					this.canvas_color.height = this.$refs.colorside.height;
+				this.pen_preview.canvas = this.$refs.local_pen;
+				this.pen_preview.canvas.width = this.pen_preview.canvas.offsetWidth;
+				this.pen_preview.canvas.height = this.pen_preview.canvas.offsetHeight;
+				if (this.pen_preview.canvas.getContext){
+					this.pen_preview.ctx = this.pen_preview.canvas.getContext('2d');
 				}
-				this.drawDot(this.ctx_color, this.$refs.colorside.width/2, this.$refs.colorside.height/2, this.dia);
+				this.drawDot(this.pen_preview.ctx);
 			}
 		},
 		mounted() {
-			this.$refs.r.value = (Math.random()*200);
-			this.$refs.g.value = (Math.random()*200);
-			this.$refs.b.value = (Math.random()*200);
-			this.r = this.$refs.r.value;
-			this.g = this.$refs.g.value;
-			this.b = this.$refs.b.value;
-			this.dia = this.$refs.dia.value;
+			if (this.$store.state.roomNumber === undefined) {
+				// this.$router.push('/')
+				this.$store.commit('roomNumber', {roomNumber: '123456'})
+			}
+			this.pen.r = Math.floor(Math.random()*256);
+			this.pen.g = Math.floor(Math.random()*256);
+			this.pen.b = Math.floor(Math.random()*256);
 
 			this.defineSketchpad();
 			this.defineColor();
 
 			//on resize
-			// this.clearCanvas(this.canvas_color, this.ctx_color);
+			// this.clearCanvas(this.pen_preview.canvas, this.pen_preview.ctx);
 
-			this.console_box.unshift({date: moment().format(this.date_format), activity: "welcome, " + this.local_user + "!"});
+			this.log(`Welcome, ${this.local_user}!`);
 		}
 	}
 </script>
@@ -164,6 +162,11 @@
 <style lang="scss" scoped>
 	.parent{
 		height: 100%;
+	}
+	.header {
+		font-size: 1.5em;
+		font-weight: bold;
+		margin: 0;
 	}
 	#sketchpadapp {
 		-webkit-touch-callout: none;
@@ -174,36 +177,47 @@
 		user-select: none;
 		overflow:auto;
 		width:100%;
-		height:70%;
+		height:75%;
 		background-color:#edf;
+		canvas {
+			width: 100%;
+			height: 100%;
+		}
 	}
-	.container {
+	.panel {
+		display: flex;
 		width: 100%;
+		height: 25%;
+		.colorside {
+			flex-basis: 15%;
+			canvas {
+				width: 100%;
+				height: 100%;
+			}
+		}
+		.leftside {
+			flex-basis: 15%;
+			padding: 10px;
+			.slide-control {
+				display: flex;
+				width: 100%;
+				input {
+					flex-basis: 90%;
+				}
+			}
+		}
+		.rightside {
+			flex-basis: 75%;
+		}
 	}
-	.colorside {
-		float:left;
-		width:15%;
-		height:30%;
-	}
-	.leftside {
-		float:left;
-		width:130px;
-		height:30%;
-		padding:10px;
-		overflow:auto;
-	}
-	.rightside {
-		width:auto;
-		height:30%;
-		overflow:auto;
-	}
+
 	#sketchpad {
 		float:left;
 		position:relative;
 	}
 	input[type=range] {
 		-webkit-appearance: none;
-		width: 100px;
+		width: 80px;
 		height: 5px;
 		margin-top: 10px;
 		margin-bottom: 15px;
@@ -280,8 +294,6 @@
 	}
 	button{
 		cursor:pointer;
-		width: 30px;
-		height: 30px;
 		margin-right: 3px;
 		margin-bottom: 5px;
 	}

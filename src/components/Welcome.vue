@@ -8,12 +8,12 @@
       </div>
       <b-alert show v-if="mode === 'join'" key="join" class="detail-dialog">
         <b-form-input v-model="roomNumber" class="roomNumber-input" type="text" placeholder="Enter Room Number"></b-form-input>
-        <b-button class="mode" variant="success" @click="joinRoom()">Join Room</b-button>
+        <b-button class="mode" variant="success" @click="joinRoom(roomNumber)">Join Room</b-button>
         <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
       </b-alert>
       <b-alert show v-if="mode === 'create'" key="create" class="detail-dialog">
         <div>Your Room Number: <strong>{{newRoomNumber}}</strong></div>
-        <b-button class="mode" variant="success" @click="joinRoom()">Enter Room</b-button>
+        <b-button class="mode" variant="success" @click="joinRoom(newRoomNumber)">Enter Room</b-button>
         <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
       </b-alert>
     </transition>
@@ -38,8 +38,9 @@ export default {
       this.newRoomNumber = Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
       this.mode = 'create'
     },
-    joinRoom () {
-      this.$router.push('/hi')
+    joinRoom (roomNumber) {
+      this.$store.commit('roomNumber', {roomNumber: roomNumber})
+      this.$router.push('/main')
     }
   }
 }
