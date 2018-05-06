@@ -1,7 +1,7 @@
 <template>
 	<div class="parent">
 		<div id="sketchpadapp" >
-			<canvas ref="sketchpad"  @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
+			<canvas ref="sketchpad" @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
 		</div>
 		<div class="panel">
 			<div class="colorside" ref="colorside">
@@ -12,8 +12,8 @@
         <b-button id="view"><font-awesome-icon :icon="['fas', 'eye']" /></b-button>
 				<b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
 				<div>
-					<b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-	        <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+			    <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+          <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
 				</div>
         <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="10" step="0.1" />{{pen.dia}}</div>
         <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
@@ -21,7 +21,7 @@
         <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
       </div>
       <div class="rightside" ref="rightside">
-        <div class="console_box" id="console_box" ref="console_box">
+        <div id="console_box" ref="console_box">
 					<div v-for="(entry, index) in console_box" :key="index">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
 				</div>
       </div>
@@ -56,6 +56,8 @@
 			pen: {
 				handler: function () {
 					this.clearCanvas(this.pen_preview.canvas, this.pen_preview.ctx)
+					this.sketchpad.ctx.strokeStyle = `rgba(${this.pen.r}, ${this.pen.g}, ${this.pen.b}, ${this.pen.a/255})`
+					this.sketchpad.ctx.lineWidth = this.pen.dia
 					this.drawDot(this.pen_preview.ctx)
 				},
 				deep: true
@@ -84,7 +86,7 @@
 					coordinate = {x: this.pen_preview.canvas.width/2, y: this.pen_preview.canvas.height/2}
 				}
 				// Select a fill style
-				ctx.fillStyle = `rgba(${this.pen.r}, ${this.pen.g}, ${this.pen.b}, ${this.pen.a/255})`;
+				ctx.fillStyle = `rgba(${this.pen.r}, ${this.pen.g}, ${this.pen.b}, ${this.pen.a/255})`
 				//Draw a filled circle
 				ctx.beginPath();
 				ctx.arc(coordinate.x, coordinate.y, this.pen.dia, 0, Math.PI*2, true);
@@ -93,46 +95,90 @@
 			},
 			sketchpad_mouseDown (e) {
 				this.isDrawing = true;
-				this.lastPoint = { x: e.clientX, y:e.clientY};
+				this.lastPoint = { x: 1920 * (e.offsetX/this.sketchpad.canvas.offsetWidth), y: 1080 * (e.offsetY/this.sketchpad.canvas.offsetHeight) };
 			},
 			sketchpad_mouseMove (e) {
 				if (!this.isDrawing) return;
-				var currentPoint = { x: e.clientX, y: e.clientY };
-				if (this.lastPoint === undefined) {
-					this.lastPoint = currentPoint
-				}
-				var dist = this.distanceBetween(this.lastPoint, currentPoint);
-				var angle = this.angleBetween(this.lastPoint, currentPoint);
 
-				for (var i = 0; i < dist; i+=2) {
-					const coordinate = {
-						x: this.lastPoint.x + (Math.sin(angle) * i),
-						y: this.lastPoint.y + (Math.cos(angle) * i)
-					}
-					this.drawDot(this.sketchpad.ctx, coordinate);
-					// this.log(`(${coordinate.x.toFixed(2)}, ${coordinate.y.toFixed(2)})`);
-				}
-				this.lastPoint = currentPoint;
+				const currentPoint = { x: 1920 * (e.offsetX/this.sketchpad.canvas.offsetWidth), y: 1080 * (e.offsetY/this.sketchpad.canvas.offsetHeight) };
+				// var dist = this.distanceBetween(this.lastPoint, currentPoint);
+				// var angle = this.angleBetween(this.lastPoint, currentPoint);
+				//
+				// for (var i = 0; i < dist; i+=2) {
+				// 	const coordinate = {
+				// 		x: 1920 * (this.lastPoint.x/this.sketchpad.canvas.offsetWidth) + (Math.sin(angle) * i),
+				// 		y: 1080 * (this.lastPoint.y/this.sketchpad.canvas.offsetHeight) + (Math.cos(angle) * i)
+				// 	}
+				// 	this.drawDot(this.sketchpad.ctx, coordinate);
+				// 	// this.log(`(${coordinate.x.toFixed(2)}, ${coordinate.y.toFixed(2)})`);
+				// }
+				// this.lastPoint = currentPoint;
+				this.sketchpad.ctx.beginPath()
+				this.sketchpad.ctx.moveTo(this.lastPoint.x, this.lastPoint.y)
+				this.sketchpad.ctx.lineTo(currentPoint.x, currentPoint.y)
+
+				this.sketchpad.ctx.stroke()
+				this.lastPoint = currentPoint
 			},
 			sketchpad_mouseUp () {
-				this.isDrawing = false;
+				this.isDrawing = false
+				this.lastPoint = undefined
 				this.log('Key Up');
+			},
+			window_resize () {
+				// if (this.sketchpad.canvas.width !== this.sketchpad.canvas.offsetWidth) {
+				// 	const dataURL = this.sketchpad.canvas.toDataURL()
+				//
+				// 	if (this.sketchpad.canvas.offsetWidth < this.sketchpad.canvas.offsetHeight) {
+				// 		this.sketchpad.canvas.width = this.sketchpad.canvas.offsetWidth;
+				// 		this.sketchpad.canvas.height = this.sketchpad.canvas.offsetWidth*9/16;
+				// 	} else {
+				// 		this.sketchpad.canvas.width = this.sketchpad.canvas.offsetHeight*16/9;
+				// 		this.sketchpad.canvas.height = this.sketchpad.canvas.offsetHeight;
+				// 	}
+				//
+				// 	this.sketchpad.ctx = this.sketchpad.canvas.getContext('2d')
+				//
+				// 	var img = new Image();
+				//
+				//   img.onload = () => {
+				//     this.sketchpad.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+				//   }
+				//
+				//   img.src = dataURL
+				// }
 			},
 			clearCanvas (canvas, ctx) {
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 			},
 			defineSketchpad () {
 				this.sketchpad.canvas = this.$refs.sketchpad;
-				this.sketchpad.canvas.width = this.sketchpad.canvas.offsetWidth;
-				this.sketchpad.canvas.height = this.sketchpad.canvas.offsetHeight;
+				// if (this.sketchpad.canvas.offsetWidth < this.sketchpad.canvas.offsetHeight) {
+				// 	this.sketchpad.canvas.width = this.sketchpad.canvas.offsetWidth;
+				// 	this.sketchpad.canvas.height = this.sketchpad.canvas.offsetWidth*9/16;
+				// } else {
+				// 	this.sketchpad.canvas.width = this.sketchpad.canvas.offsetHeight*16/9;
+				// 	this.sketchpad.canvas.height = this.sketchpad.canvas.offsetHeight;
+				// }
+
+				this.sketchpad.canvas.width = 1920
+				this.sketchpad.canvas.height = 1080
+
 				if(this.sketchpad.canvas.getContext){
 					this.sketchpad.ctx = this.sketchpad.canvas.getContext('2d');
+
+					this.sketchpad.ctx.lineCap='round'
+					var img = document.createElement('img')
+					img.onload = () => {
+						this.sketchpad.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+					}
+					img.src = `/api/sketchpads/${this.roomNumber}`
 				}
 			},
 			defineColor () {
 				this.pen_preview.canvas = this.$refs.local_pen;
-				this.pen_preview.canvas.width = this.pen_preview.canvas.offsetWidth;
-				this.pen_preview.canvas.height = this.pen_preview.canvas.offsetHeight;
+				this.pen_preview.canvas.width = Math.floor(this.pen_preview.canvas.offsetHeight);
+				this.pen_preview.canvas.height = Math.floor(this.pen_preview.canvas.offsetHeight);
 				if (this.pen_preview.canvas.getContext){
 					this.pen_preview.ctx = this.pen_preview.canvas.getContext('2d');
 				}
@@ -154,6 +200,8 @@
 			//on resize
 			// this.clearCanvas(this.pen_preview.canvas, this.pen_preview.ctx);
 
+			window.addEventListener('resize', this.window_resize)
+
 			this.log(`Welcome, ${this.local_user}!`);
 		}
 	}
@@ -162,6 +210,9 @@
 <style lang="scss" scoped>
 	.parent{
 		height: 100%;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
 	}
 	.header {
 		font-size: 1.5em;
@@ -177,22 +228,24 @@
 		user-select: none;
 		overflow:auto;
 		width:100%;
-		height:75%;
-		background-color:#edf;
+		flex-basis: 75%;
+		overflow: hidden;
 		canvas {
 			width: 100%;
-			height: 100%;
+
+			object-fit: contain;
+			background-color: black;
 		}
 	}
 	.panel {
 		display: flex;
 		width: 100%;
-		height: 25%;
+		flex-basis: 25%;
 		.colorside {
 			flex-basis: 15%;
 			canvas {
 				width: 100%;
-				height: 100%;
+				object-fit: contain;
 			}
 		}
 		.leftside {
@@ -208,6 +261,11 @@
 		}
 		.rightside {
 			flex-basis: 75%;
+			height: 100%;
+			#console_box {
+				height: 100%;
+				overflow: auto;
+			}
 		}
 	}
 

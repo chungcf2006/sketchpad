@@ -22,5 +22,6 @@ app.get('/', function (req, res) {
 
 
 app.use('/users', require('./modules/user.js'))
+app.use('/sketchpads', require('./modules/sketchpad.js'))
 
 app.listen(8081)
