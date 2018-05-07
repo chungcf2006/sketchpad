@@ -7,29 +7,30 @@
       <div class="colorside" ref="colorside">
         <canvas id="color" ref="local_pen"></canvas>
       </div>
-      <div class="leftside" ref="leftside">
-        <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
-        <b-button id="view"><font-awesome-icon :icon="['fas', 'eye']" /></b-button>
-        <b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
-        <div>
-          <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-          <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
-        </div>
-        <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="10" step="0.1" />{{pen.dia}}</div>
-        <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
-        <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
-        <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
-      </div>
-      <div id="console_box" ref="console_box">
-        <div v-for="(entry, index) in console_box" :key="index">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
-      </div>
-      <div class="rightside">
+      <div class="online_box">
         <b-alert show class="header">#{{roomNumber}}</b-alert>
         <b-alert show variant="secondary" id="onlineUsers">
           <ul>
             <li v-for="user in onlineUsers"><font-awesome-icon :icon="['fas', 'user']" /> {{user.name}}</li>
           </ul>
         </b-alert>
+      </div>
+      <div class="leftside" ref="leftside">
+        <div>
+        <b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+        <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
+          <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+        <b-button id="square"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
+        <b-button id="circle"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+          <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+        </div>
+        <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
+        <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
+        <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
+        <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
+      </div>
+      <div id="console_box" ref="console_box">
+        <div v-for="(entry, index) in console_box" :key="index">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
       </div>
     </div>
   </div>
@@ -77,6 +78,12 @@
         }
         if (this.sketchpad.mode === 'eraser') {
           this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+        }
+        if (this.sketchpad.mode === 'brush') {
+          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+        }
+        if (this.sketchpad.mode === 'circle') {
+          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
         }
       }
     },
@@ -130,6 +137,7 @@
         this.sketchpad.ctx.beginPath()
         this.sketchpad.ctx.moveTo(this.lastPoint.x, this.lastPoint.y)
         this.sketchpad.ctx.lineTo(currentPoint.x, currentPoint.y)
+        this.log('Key Move:' + (this.lastPoint.x|0) + ", " + (this.lastPoint.y|0));
 
         this.sketchpad.ctx.stroke()
         this.lastPoint = currentPoint
@@ -237,15 +245,15 @@
     width: 100%;
     flex-basis: 25%;
     .colorside {
-      flex-basis: 15%;
+      flex-basis: 0%;
       canvas {
         width: 100%;
         object-fit: contain;
       }
     }
     .leftside {
-      flex-basis: 15%;
-      padding: 10px;
+      flex-basis: 25%;
+      padding: 3px;
       .slide-control {
         display: flex;
         width: 100%;
@@ -255,12 +263,13 @@
       }
     }
     #console_box {
-      flex-basis: 70%;
+      flex-basis: 50%;
       height: 100%;
       overflow: auto;
+      text-align: left;
     }
-    .rightside {
-      flex-basis: 20%;
+    .online_box {
+      flex-basis: 25%;
       height: 100%;
       display: flex;
       flex-direction: column;
