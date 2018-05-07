@@ -32,7 +32,7 @@
     "devServer": {
       "proxy": {
         "/api": {
-          "target": "http://localhost:8081",
+          "target": "http://csci4140.southeastasia.cloudapp.azure.com:8081/",
           "changeOrigin": true,
           "pathRewrite": {
             "^/api": ""
