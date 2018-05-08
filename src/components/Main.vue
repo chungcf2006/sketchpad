@@ -11,7 +11,7 @@
         <b-alert show class="header">#{{roomNumber}}</b-alert>
         <b-alert show variant="secondary" id="onlineUsers">
           <ul>
-            <li v-for="user in onlineUsers"><font-awesome-icon :icon="['fas', 'user']" /> {{user.name}}</li>
+            <li v-for="user in onlineUsers" :key="user.name"><font-awesome-icon :icon="['fas', 'user']" /> {{user.name}}</li>
           </ul>
         </b-alert>
       </div>
@@ -38,6 +38,8 @@
 
 <script>
   import moment from 'moment'
+  import io from 'socket.io-client'
+
   export default{
     name: 'Main',
     data () {
@@ -54,7 +56,9 @@
         mouse: {x: 0, y: 0, down: 0},
         isDrawing: undefined, lastPoint: undefined,
         date_format: 'YYYY-MM-DD HH:mm:ss',
-        console_box: []
+        console_box: [],
+        socket: undefined,
+        pendingSend: {}
       }
     },
     computed: {
@@ -66,8 +70,7 @@
       pen: {
         handler: function () {
           this.clearCanvas(this.pen_preview.canvas, this.pen_preview.ctx)
-          this.sketchpad.ctx.strokeStyle = `rgba(${this.pen.r}, ${this.pen.g}, ${this.pen.b}, ${this.pen.a/255})`
-          this.sketchpad.ctx.lineWidth = this.pen.dia
+          this.setPen(this.pen)
           this.drawDot(this.pen_preview.ctx)
         },
         deep: true
@@ -115,6 +118,9 @@
           const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*16/9))/2
           this.lastPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*16/9))
         }
+
+        this.pendingSend.pen = this.pen
+        this.pendingSend.coordinates = [this.lastPoint]
       },
       sketchpad_mouseMove (e) {
         if (!this.isDrawing) return;
@@ -134,21 +140,32 @@
            currentPoint.y = this.sketchpad.canvas.height * (e.clientY/this.sketchpad.canvas.offsetHeight)
         }
 
-        this.sketchpad.ctx.beginPath()
-        this.sketchpad.ctx.moveTo(this.lastPoint.x, this.lastPoint.y)
-        this.sketchpad.ctx.lineTo(currentPoint.x, currentPoint.y)
-        this.log('Key Move:' + (this.lastPoint.x|0) + ", " + (this.lastPoint.y|0));
+        currentPoint.x = Math.floor(currentPoint.x)
+        currentPoint.y = Math.floor(currentPoint.y)
 
-        this.sketchpad.ctx.stroke()
+        this.draw(this.lastPoint, currentPoint)
+        this.log('Key Move:' + currentPoint.x + ", " + currentPoint.y);
+        this.pendingSend.coordinates.push(this.lastPoint)
         this.lastPoint = currentPoint
       },
       sketchpad_mouseUp () {
         this.isDrawing = false
         this.lastPoint = undefined
-        this.log('Key Up');
+        this.log('Key Up')
+        console.log(this.pendingSend)
+
+        console.log(this.socket.emit('new_stroke', this.pendingSend))
+
       },
       clearCanvas (canvas, ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+      },
+      draw (last, current) {
+        console.log('draw')
+        this.sketchpad.ctx.beginPath()
+        this.sketchpad.ctx.moveTo(last.x, last.y)
+        this.sketchpad.ctx.lineTo(current.x, current.y)
+        this.sketchpad.ctx.stroke()
       },
       save () {
         const fd = new FormData()
@@ -187,6 +204,24 @@
           this.pen_preview.ctx = this.pen_preview.canvas.getContext('2d');
         }
         this.drawDot(this.pen_preview.ctx);
+      },
+      bindWebSocket () {
+        this.socket = io({
+          query: {
+            sketchpadID: this.roomNumber
+          }
+        })
+        this.socket.open()
+        this.socket.on('draw', data => {
+          this.setPen(data.pen)
+          for (let i = 0; i < data.coordinates.length - 1; i++) {
+            this.draw(data.coordinates[i], data.coordinates[i+1])
+          }
+        })
+      },
+      setPen (pen) {
+        this.sketchpad.ctx.strokeStyle = `rgba(${pen.r}, ${pen.g}, ${pen.b}, ${pen.a/255})`
+        this.sketchpad.ctx.lineWidth = pen.dia
       }
     },
     mounted() {
@@ -201,8 +236,7 @@
       this.defineSketchpad();
       this.defineColor();
 
-
-      window.addEventListener('resize', this.window_resize)
+      this.bindWebSocket()
 
       this.log(`Welcome, ${this.local_user}!`);
     }
@@ -237,7 +271,7 @@
       object-fit: contain;
       width: 100%;
       height: 100%;
-      background-color: black;
+      // background-color: black;
     }
   }
   .panel {
