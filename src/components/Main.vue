@@ -171,7 +171,8 @@
           canvas.width, canvas.height);
       },
       draw_rect(last, current) {
-        this.sketchpad.ctx.restore()
+        console.log(this.sketchpad.ctx)
+        // this.sketchpad.ctx.restore()
         this.sketchpad.ctx.beginPath()
         this.sketchpad.ctx.rect(last.x, last.y, current.x-last.x, current.y-last.y)
         this.sketchpad.ctx.closePath()
