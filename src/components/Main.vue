@@ -50,7 +50,7 @@
           {username: 'yu', name: 'Yu', status: 'idle', pen: {dia:5, r:0, g:255, b: 255, a:255}}
         ],
         username: 'john',
-        sketchpad: {canvas: undefined, ctx: undefined, mode: 'brush'},
+        sketchpad: {canvas: undefined, ctx: undefined, imageData: undefined, mode: 'brush'},
 
         pen: {dia: 5, r: undefined, b: undefined, g: undefined, a: 255},
         mouse: {x: 0, y: 0, down: 0},
@@ -114,7 +114,7 @@
         }
 
         this.log('Key Down')
-        this.sketchpad.ctx.save()
+        this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, 1920, 1080)
         this.pendingSend.pen = this.pen
         this.pendingSend.coordinates = [this.lastPoint]
         this.setPen(this.pen)
@@ -163,7 +163,7 @@
           canvas.width, canvas.height);
       },
       draw_rect(last, current) {
-        this.sketchpad.ctx.restore()
+        this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
         this.sketchpad.ctx.beginPath()
         this.sketchpad.ctx.rect(last.x, last.y, current.x-last.x, current.y-last.y)
         this.sketchpad.ctx.closePath()
