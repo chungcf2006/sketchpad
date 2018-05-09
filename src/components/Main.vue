@@ -14,7 +14,7 @@
       </div>
       <div class="leftside" ref="leftside">
         <div>
-        <b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+        <b-button id="download" @click="download()"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
         <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
           <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
         <b-button id="square" :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
@@ -235,6 +235,18 @@
       setPen (pen) {
         this.sketchpad.ctx.strokeStyle = `rgba(${pen.r}, ${pen.g}, ${pen.b}, ${pen.a/255})`
         this.sketchpad.ctx.lineWidth = pen.dia
+      },
+      download (){
+        var canvasElement = this.sketchpad.canvas;
+        var MIME_TYPE = "image/png";
+        var imgURL = canvasElement.toDataURL(MIME_TYPE);
+        var dlLink = document.createElement('a');
+        dlLink.download = this.$store.state.roomNumber+"_"+moment().format(this.date_format);
+        dlLink.href = imgURL;
+        dlLink.dataset.downloadurl = [MIME_TYPE, dlLink.download, dlLink.href].join(':');
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        document.body.removeChild(dlLink);
       }
     },
     mounted() {
