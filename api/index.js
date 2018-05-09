@@ -4,6 +4,8 @@ const Express = require('express')
 const app = Express()
 const server = require('http').Server(app)
 const bodyParser = require('body-parser')
+const morgan = require('morgan')
+const io = require('./modules/io')(server)
 
 global.pgp = require('pg-promise')();
 global.db = global.pgp({
@@ -14,26 +16,19 @@ global.db = global.pgp({
   password: 'sketchpad'
 })
 
-const io = require('socket.io')(server);
+app.use(morgan('dev'))
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
-app.get('/', function (req, res) {
-  res.send('hi')
+app.use('/', function (req, res, next) {
+  if (req.url.startsWith('/api')) {
+    req.url = req.url.substring(4)
+  }
+  next()
 })
-
 
 app.use('/users', require('./modules/user.js'))
 app.use('/sketchpads', require('./modules/sketchpad.js'))
-
-io.on('connection', function (socket) {
-  const sketchpadID = socket.handshake.query.sketchpadID
-  socket.join(sketchpadID)
-  socket.on('new_stroke', function (data) {
-    console.log(data)
-    io.to(sketchpadID).emit('draw', data)
-  })
-})
 
 server.listen(8081)

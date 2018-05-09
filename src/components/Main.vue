@@ -4,14 +4,11 @@
       <canvas ref="sketchpad" @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
     </div>
     <div class="panel">
-      <div class="colorside" ref="colorside">
-        <canvas id="color" ref="local_pen"></canvas>
-      </div>
       <div class="online_box">
         <b-alert show class="header">#{{roomNumber}}</b-alert>
         <b-alert show variant="secondary" id="onlineUsers">
           <ul>
-            <li v-for="user in onlineUsers" :key="user.name"><font-awesome-icon :icon="['fas', 'user']" /> {{user.name}}</li>
+            <li v-for="user in onlineUsers" :key="user.name"><online-display :user="user"></online-display></li>
           </ul>
         </b-alert>
       </div>
@@ -39,19 +36,22 @@
 <script>
   import moment from 'moment'
   import io from 'socket.io-client'
+  import OnlineDisplay from './templates/OnlineDisplay'
 
   export default{
     name: 'Main',
+    components: {
+      'online-display': OnlineDisplay
+    },
     data () {
       return {
         onlineUsers: [
-          {name: 'John', status: 'drawing'},
-          {name: 'Yu', status: 'idle'}
+          {username: 'john', name: 'John', status: 'drawing', pen: {dia:5, r:0, g:0, b: 255, a:255}},
+          {username: 'yu', name: 'Yu', status: 'idle', pen: {dia:5, r:0, g:255, b: 255, a:255}}
         ],
-        local_user: 'Yu',
-        local_screenWidth: document.body.clientWidth,
-        sketchpad: {canvas: undefined, ctx: undefined, mode: 'brush'},
-        pen_preview: {canvas: undefined, ctx: undefined},
+        username: 'john',
+        sketchpad: {canvas: undefined, ctx: undefined, imageData: undefined, mode: 'brush'},
+
         pen: {dia: 5, r: undefined, b: undefined, g: undefined, a: 255},
         mouse: {x: 0, y: 0, down: 0},
         isDrawing: undefined, lastPoint: undefined,
@@ -69,46 +69,36 @@
     watch: {
       pen: {
         handler: function () {
-          this.clearCanvas(this.pen_preview.canvas, this.pen_preview.ctx)
-          this.setPen(this.pen)
-          this.drawDot(this.pen_preview.ctx)
+          let data = {username: this.username}
+          data.pen = this.pen
+          this.socket.emit('update_pen', data)
         },
         deep: true
       },
       'sketchpad.mode': function () {
-        if (this.sketchpad.mode === 'brush') {
-          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+        switch (this.sketchpad.mode) {
+          case 'brush':
+            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+            break
+          case 'eraser':
+            this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+            break
+          case 'circle':
+            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+            break
+          case 'rectangle':
+            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+            break
         }
-        if (this.sketchpad.mode === 'eraser') {
-          this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
-        }
-        if (this.sketchpad.mode === 'brush') {
-          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-        }
-        if (this.sketchpad.mode === 'circle') {
-          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-        }
-        this.log('Yu using ' + this.sketchpad.mode);
+        this.log(`${this.local_user} using ${this.sketchpad.mode}`);
       }
     },
     methods:{
       log (content) {
         this.console_box.unshift({
-          date: moment().format(this.date_format), 
+          date: moment().format(this.date_format),
           activity: content
         })
-      },
-      drawDot(ctx, coordinate){
-        if (coordinate === undefined) {
-          coordinate = {x: this.pen_preview.canvas.width/2, y: this.pen_preview.canvas.height/2}
-        }
-        // Select a fill style
-        ctx.fillStyle = `rgba(${this.pen.r}, ${this.pen.g}, ${this.pen.b}, ${this.pen.a/255})`
-        //Draw a filled circle
-        ctx.beginPath();
-        ctx.arc(coordinate.x, coordinate.y, this.pen.dia, 0, Math.PI*2, true);
-        ctx.closePath();
-        ctx.fill();
       },
       sketchpad_mouseDown (e) {
         this.isDrawing = true;
@@ -124,9 +114,11 @@
         }
 
         this.log('Key Down')
-        this.sketchpad.ctx.save()
+        this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, 1920, 1080)
         this.pendingSend.pen = this.pen
         this.pendingSend.coordinates = [this.lastPoint]
+        this.setPen(this.pen)
+
       },
       sketchpad_mouseMove (e) {
         if (!this.isDrawing) return;
@@ -156,6 +148,8 @@
           this.lastPoint = currentPoint
         }else if(this.sketchpad.mode === 'square'){
           this.draw_rect(this.lastPoint, currentPoint)
+        }else if(this.sketchpad.mode === 'circle'){
+          this.draw_Arc(this.lastPoint, currentPoint)
         }
       },
       sketchpad_mouseUp () {
@@ -163,23 +157,28 @@
         this.isDrawing = false
         this.lastPoint = undefined
         this.log('Key Up')
-        console.log(this.pendingSend)
         this.socket.emit('new_stroke', this.pendingSend)
+        console.log(this.pendingSend)
       },
       clearCanvas (canvas, ctx) {
-        ctx.clearRect(0, 0, 
+        ctx.clearRect(0, 0,
           canvas.width, canvas.height);
       },
+      draw_Arc (last, current){
+        this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
+        this.sketchpad.ctx.beginPath()
+        this.sketchpad.ctx.arc(last.x, last.y, last.x-current.x, 0, 2*Math.PI)
+        this.sketchpad.ctx.closePath()
+        this.sketchpad.ctx.stroke()
+      },
       draw_rect(last, current) {
-        console.log(this.sketchpad.ctx)
-        // this.sketchpad.ctx.restore()
+        this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
         this.sketchpad.ctx.beginPath()
         this.sketchpad.ctx.rect(last.x, last.y, current.x-last.x, current.y-last.y)
         this.sketchpad.ctx.closePath()
         this.sketchpad.ctx.stroke()
       },
       draw (last, current) {
-        console.log('draw')
         this.sketchpad.ctx.beginPath()
         this.sketchpad.ctx.moveTo(last.x, last.y)
         this.sketchpad.ctx.lineTo(current.x, current.y)
@@ -213,15 +212,6 @@
           img.src = `/api/sketchpads/${this.roomNumber}`
         }
       },
-      defineColor () {
-        this.pen_preview.canvas = this.$refs.local_pen;
-        this.pen_preview.canvas.width = Math.floor(this.pen_preview.canvas.offsetHeight);
-        this.pen_preview.canvas.height = Math.floor(this.pen_preview.canvas.offsetHeight);
-        if (this.pen_preview.canvas.getContext){
-          this.pen_preview.ctx = this.pen_preview.canvas.getContext('2d');
-        }
-        this.drawDot(this.pen_preview.ctx);
-      },
       bindWebSocket () {
         this.socket = io({
           query: {
@@ -233,6 +223,12 @@
           this.setPen(data.pen)
           for (let i = 0; i < data.coordinates.length - 1; i++) {
             this.draw(data.coordinates[i], data.coordinates[i+1])
+          }
+        })
+        this.socket.on('display_update_pen', data => {
+          let index
+          if ((index = this.onlineUsers.findIndex(user => user.username === data.username)) != -1) {
+            this.onlineUsers[index].pen = data.pen
           }
         })
       },
@@ -251,7 +247,6 @@
       this.pen.b = Math.floor(Math.random()*256);
 
       this.defineSketchpad();
-      this.defineColor();
 
       this.bindWebSocket()
 
