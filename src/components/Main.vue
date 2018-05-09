@@ -1,6 +1,6 @@
 <template>
   <div class="parent">
-    <div id="sketchpadapp" >
+    <div id="sketchpadapp" ref="sketchpadapp">
       <canvas ref="sketchpad" @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
     </div>
     <div class="panel">
@@ -20,8 +20,8 @@
         <b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
         <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
           <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-        <b-button id="square"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
-        <b-button id="circle"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+        <b-button id="square" :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
+        <b-button id="circle" :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
           <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
         </div>
         <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
@@ -58,7 +58,7 @@
         date_format: 'YYYY-MM-DD HH:mm:ss',
         console_box: [],
         socket: undefined,
-        pendingSend: {}
+        pendingSend: {},
       }
     },
     computed: {
@@ -88,11 +88,15 @@
         if (this.sketchpad.mode === 'circle') {
           this.sketchpad.ctx.globalCompositeOperation = 'source-over'
         }
+        this.log('Yu using ' + this.sketchpad.mode);
       }
     },
     methods:{
       log (content) {
-        this.console_box.unshift({date: moment().format(this.date_format), activity: content})
+        this.console_box.unshift({
+          date: moment().format(this.date_format), 
+          activity: content
+        })
       },
       drawDot(ctx, coordinate){
         if (coordinate === undefined) {
@@ -119,6 +123,8 @@
           this.lastPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*16/9))
         }
 
+        this.log('Key Down')
+        this.sketchpad.ctx.save()
         this.pendingSend.pen = this.pen
         this.pendingSend.coordinates = [this.lastPoint]
       },
@@ -142,23 +148,34 @@
 
         currentPoint.x = Math.floor(currentPoint.x)
         currentPoint.y = Math.floor(currentPoint.y)
-
-        this.draw(this.lastPoint, currentPoint)
         this.log('Key Move:' + currentPoint.x + ", " + currentPoint.y);
-        this.pendingSend.coordinates.push(this.lastPoint)
-        this.lastPoint = currentPoint
+
+        if(this.sketchpad.mode === 'brush' || this.sketchpad.mode === 'eraser'){
+          this.draw(this.lastPoint, currentPoint)
+          this.pendingSend.coordinates.push(this.lastPoint)
+          this.lastPoint = currentPoint
+        }else if(this.sketchpad.mode === 'square'){
+          this.draw_rect(this.lastPoint, currentPoint)
+        }
       },
       sketchpad_mouseUp () {
+        this.sketchpad.ctx.save()
         this.isDrawing = false
         this.lastPoint = undefined
         this.log('Key Up')
         console.log(this.pendingSend)
-
-        console.log(this.socket.emit('new_stroke', this.pendingSend))
-
+        this.socket.emit('new_stroke', this.pendingSend)
       },
       clearCanvas (canvas, ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, 
+          canvas.width, canvas.height);
+      },
+      draw_rect(last, current) {
+        this.sketchpad.ctx.restore()
+        this.sketchpad.ctx.beginPath()
+        this.sketchpad.ctx.rect(last.x, last.y, current.x-last.x, current.y-last.y)
+        this.sketchpad.ctx.closePath()
+        this.sketchpad.ctx.stroke()
       },
       draw (last, current) {
         console.log('draw')
@@ -177,7 +194,6 @@
             }
           })
         })
-
       },
       defineSketchpad () {
         this.sketchpad.canvas = this.$refs.sketchpad;
