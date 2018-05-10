@@ -14,18 +14,12 @@
 
       <div class="leftside" ref="leftside">
         <div>
-          <b-button><font-awesome-icon :icon="['fas', 'download']" /></b-button>
-          <b-button><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
-          <b-button variant="primary" @click="save()"><font-awesome-icon :icon="['fas', 'save']" /></b-button>
-        </div>
-        <div>
-          <b-button :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-          <b-button :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
-          <b-button :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
-        </div>
-        <div>
-          <b-button id="edit" :variant="!sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=false"><font-awesome-icon :icon="['fas', 'edit']" /></b-button>
-          <b-button id="eraser" :variant="sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=true"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+        <b-button id="download" @click="download()"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+        <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
+          <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+        <b-button id="square" :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
+        <b-button id="circle" :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+          <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
         </div>
         <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
         <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
@@ -92,6 +86,7 @@
           this.sketchpad.ctx.globalCompositeOperation = 'source-over'
           this.log('Yu using edit')
         }
+        this.log(`${this.local_user} using ${this.sketchpad.mode}`);
       }
     },
     methods:{
@@ -169,6 +164,8 @@
         } else if(this.sketchpad.mode === 'square'){
           this.draw_rect(this.lastPoint, currentPoint)
           this.pendingSend.coordinates[1] = currentPoint
+        }else if(this.sketchpad.mode === 'circle'){
+          this.draw_Arc(this.lastPoint, currentPoint)
         }
         this.socket.emit('new_stroke', this.pendingSend)
       },
@@ -181,6 +178,13 @@
       clearCanvas (canvas, ctx) {
         ctx.clearRect(0, 0,
           canvas.width, canvas.height);
+      },
+      draw_Arc (last, current){
+        this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
+        this.sketchpad.ctx.beginPath()
+        this.sketchpad.ctx.arc(last.x, last.y, last.x-current.x, 0, 2*Math.PI)
+        this.sketchpad.ctx.closePath()
+        this.sketchpad.ctx.stroke()
       },
       draw_rect(last, current) {
         if (this.sketchpad.imageData !== undefined) {
@@ -263,6 +267,18 @@
       setPen (pen) {
         this.sketchpad.ctx.strokeStyle = `rgba(${pen.r}, ${pen.g}, ${pen.b}, ${pen.a/255})`
         this.sketchpad.ctx.lineWidth = pen.dia
+      },
+      download (){
+        var canvasElement = this.sketchpad.canvas;
+        var MIME_TYPE = "image/png";
+        var imgURL = canvasElement.toDataURL(MIME_TYPE);
+        var dlLink = document.createElement('a');
+        dlLink.download = this.$store.state.roomNumber+"_"+moment().format(this.date_format);
+        dlLink.href = imgURL;
+        dlLink.dataset.downloadurl = [MIME_TYPE, dlLink.download, dlLink.href].join(':');
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        document.body.removeChild(dlLink);
       }
     },
     mounted() {
