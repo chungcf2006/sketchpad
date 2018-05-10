@@ -1,6 +1,6 @@
 <template>
   <div class="entry">
-    <font-awesome-icon :icon="['fas', 'user']" ref="icon" /> {{user.name}}
+    <font-awesome-icon :icon="['fas', 'user']" ref="icon" /> {{user.username}}
   </div>
 </template>
 

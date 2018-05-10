@@ -4,7 +4,7 @@ const path = require('path')
 const multer = require('multer')
 const fs = require('fs')
 const upload = multer({ storage: multer.memoryStorage() })
-const redis = require('redis')
+const redis = require('then-redis')
 const redisClient = redis.createClient()
 const app = Express()
 
@@ -26,23 +26,31 @@ app.post('/:sketchpadID', upload.single('sketchpad'), function (req, res) {
   }
 })
 
-app.post('/:sketchpadID/login', function (req, res) {
+app.post('/:sketchpadID/members/:username', async function (req, res) {
   const sketchpadID = req.params.sketchpadID
-  redisClient.sadd(`userlist_${sketchpadID}`, req.body.username)
+  const isMember = await redisClient.sismember(`${sketchpadID}:userlist`, req.params.username)
+  if (!isMember) {
+    redisClient.sadd(`${sketchpadID}:userlist`, req.params.username)
+    res.end()
+  } else {
+    res.status(401).send('Username already exist')
+  }
+})
+
+app.delete('/:sketchpadID/members/:username', function (req, res) {
+  const sketchpadID = req.params.sketchpadID
+  redisClient.srem(`${sketchpadID}:userlist`, req.params.username)
   res.end()
 })
 
-app.post('/:sketchpadID/logout', function (req, res) {
+app.get('/:sketchpadID/members', async function (req, res) {
   const sketchpadID = req.params.sketchpadID
-  redisClient.srem(`userlist_${sketchpadID}`, req.body.username)
-  res.end()
-})
-
-app.get('/:sketchpadID/memberList', function (req, res) {
-  const sketchpadID = req.params.sketchpadID
-  redisClient.smembers(`userlist_${sketchpadID}`, function (err, results) {
-    res.json(results)
-  })
+  var list = await redisClient.smembers(`${sketchpadID}:userlist`)
+  list = await Promise.all(list.map(async result => {
+    const pen = await redisClient.hgetall(`${sketchpadID}:${result}:pen`)
+    return {username: result, pen: pen}
+  }))
+  res.json(list)
 })
 
 

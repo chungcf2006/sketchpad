@@ -1,9 +1,37 @@
 <template>
   <div class="parent">
+    <b-modal ref="setUsername" @ok="verifyUsername" title="Set Screen Name">
+      <b-alert variant="danger" :show="setUsername.error !== undefined">{{setUsername.error}}</b-alert>
+      <b-input type="text" placeholder="Please set your screen name" v-model="setUsername.username" />
+    </b-modal>
     <div id="sketchpadapp" ref="sketchpadapp">
       <canvas ref="sketchpad" @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
     </div>
     <div class="panel">
+      <div id="console_box" ref="console_box">
+        <div v-for="(entry, index) in console_box" :key="index">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
+      </div>
+
+      <div class="leftside" ref="leftside">
+        <div>
+          <b-button><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+          <b-button><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
+          <b-button variant="primary" @click="save()"><font-awesome-icon :icon="['fas', 'save']" /></b-button>
+        </div>
+        <div>
+          <b-button :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+          <b-button :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
+          <b-button :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+        </div>
+        <div>
+          <b-button id="edit" :variant="!sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=false"><font-awesome-icon :icon="['fas', 'edit']" /></b-button>
+          <b-button id="eraser" :variant="sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=true"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+        </div>
+        <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
+        <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
+        <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
+        <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
+      </div>
       <div class="online_box">
         <b-alert show class="header">#{{roomNumber}}</b-alert>
         <b-alert show variant="secondary" id="onlineUsers">
@@ -11,23 +39,6 @@
             <li v-for="user in onlineUsers" :key="user.name"><online-display :user="user"></online-display></li>
           </ul>
         </b-alert>
-      </div>
-      <div class="leftside" ref="leftside">
-        <div>
-        <b-button id="download"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
-        <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
-          <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-        <b-button id="square" :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
-        <b-button id="circle" :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
-          <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
-        </div>
-        <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
-        <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
-        <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
-        <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
-      </div>
-      <div id="console_box" ref="console_box">
-        <div v-for="(entry, index) in console_box" :key="index">&lt;{{entry.date}}&gt; {{entry.activity}}</div>
       </div>
     </div>
   </div>
@@ -45,12 +56,9 @@
     },
     data () {
       return {
-        onlineUsers: [
-          {username: 'john', name: 'John', status: 'drawing', pen: {dia:5, r:0, g:0, b: 255, a:255}},
-          {username: 'yu', name: 'Yu', status: 'idle', pen: {dia:5, r:0, g:255, b: 255, a:255}}
-        ],
+        onlineUsers: [],
         username: 'john',
-        sketchpad: {canvas: undefined, ctx: undefined, imageData: undefined, mode: 'brush'},
+        sketchpad: {canvas: undefined, ctx: undefined, imageData: undefined, mode: 'brush', erase: false},
 
         pen: {dia: 5, r: undefined, b: undefined, g: undefined, a: 255},
         mouse: {x: 0, y: 0, down: 0},
@@ -59,6 +67,7 @@
         console_box: [],
         socket: undefined,
         pendingSend: {},
+        setUsername: {username: undefined, error: undefined}
       }
     },
     computed: {
@@ -75,22 +84,14 @@
         },
         deep: true
       },
-      'sketchpad.mode': function () {
-        switch (this.sketchpad.mode) {
-          case 'brush':
-            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-            break
-          case 'eraser':
-            this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
-            break
-          case 'circle':
-            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-            break
-          case 'rectangle':
-            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-            break
+      'sketchpad.erase': function () {
+        if (this.sketchpad.erase) {
+          this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+          this.log('Yu using eraser')
+        } else {
+          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+          this.log('Yu using edit')
         }
-        this.log('Yu using ' + this.sketchpad.mode);
       }
     },
     methods:{
@@ -98,6 +99,22 @@
         this.console_box.unshift({
           date: moment().format(this.date_format),
           activity: content
+        })
+      },
+      verifyUsername (e) {
+        e.preventDefault()
+        this.$http.post(`/api/sketchpads/${this.roomNumber}/login`, {username: this.setUsername.username}).then(response => {
+          console.log(response)
+          localStorage.setItem('username', this.setUsername.username)
+          this.username = this.setUsername.username
+          this.$refs.setUsername.hide()
+        }).catch(error => {
+          this.setUsername.error = "Username already exists"
+        })
+      },
+      loadUserlist () {
+        this.$http.get(`/api/sketchpads/${this.roomNumber}/members`).then(response => {
+          this.onlineUsers = response.data
         })
       },
       sketchpad_mouseDown (e) {
@@ -116,6 +133,8 @@
         this.log('Key Down')
         this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, 1920, 1080)
         this.pendingSend.pen = this.pen
+        this.pendingSend.erase = this.sketchpad.erase
+        this.pendingSend.mode = this.sketchpad.mode
         this.pendingSend.coordinates = [this.lastPoint]
         this.setPen(this.pen)
 
@@ -142,28 +161,31 @@
         currentPoint.y = Math.floor(currentPoint.y)
         this.log('Key Move:' + currentPoint.x + ", " + currentPoint.y);
 
-        if(this.sketchpad.mode === 'brush' || this.sketchpad.mode === 'eraser'){
+        if(this.sketchpad.mode === 'brush'){
           this.draw(this.lastPoint, currentPoint)
-          this.pendingSend.coordinates.push(this.lastPoint)
+          this.pendingSend.coordinates[0] = this.lastPoint
+          this.pendingSend.coordinates[1] = currentPoint
           this.lastPoint = currentPoint
-        }else if(this.sketchpad.mode === 'square'){
+        } else if(this.sketchpad.mode === 'square'){
           this.draw_rect(this.lastPoint, currentPoint)
+          this.pendingSend.coordinates[1] = currentPoint
         }
+        this.socket.emit('new_stroke', this.pendingSend)
       },
       sketchpad_mouseUp () {
         this.sketchpad.ctx.save()
         this.isDrawing = false
         this.lastPoint = undefined
         this.log('Key Up')
-        console.log(this.pendingSend)
-        this.socket.emit('new_stroke', this.pendingSend)
       },
       clearCanvas (canvas, ctx) {
         ctx.clearRect(0, 0,
           canvas.width, canvas.height);
       },
       draw_rect(last, current) {
-        this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
+        if (this.sketchpad.imageData !== undefined) {
+          this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
+        }
         this.sketchpad.ctx.beginPath()
         this.sketchpad.ctx.rect(last.x, last.y, current.x-last.x, current.y-last.y)
         this.sketchpad.ctx.closePath()
@@ -212,9 +234,24 @@
         this.socket.open()
         this.socket.on('draw', data => {
           this.setPen(data.pen)
-          for (let i = 0; i < data.coordinates.length - 1; i++) {
-            this.draw(data.coordinates[i], data.coordinates[i+1])
+          const originalComposite = this.sketchpad.ctx.globalCompositeOperation
+          if (data.erase) {
+            this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+          } else {
+            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
           }
+          switch (data.mode) {
+            case 'brush':
+              for (let i = 0; i < data.coordinates.length - 1; i++) {
+                this.draw(data.coordinates[i], data.coordinates[i+1])
+              }
+              break
+            case 'square':
+              this.draw_rect(data.coordinates[0], data.coordinates[1])
+              break
+          }
+
+          this.sketchpad.ctx.globalCompositeOperation = originalComposite
         })
         this.socket.on('display_update_pen', data => {
           let index
@@ -229,6 +266,10 @@
       }
     },
     mounted() {
+      this.username = localStorage.getItem('username')
+      if (this.username === null) {
+        this.$refs.setUsername.show()
+      }
       if (this.$store.state.roomNumber === undefined) {
         // this.$router.push('/')
         this.$store.commit('roomNumber', {roomNumber: '123456'})
@@ -237,20 +278,24 @@
       this.pen.g = Math.floor(Math.random()*256);
       this.pen.b = Math.floor(Math.random()*256);
 
-      this.defineSketchpad();
+      this.defineSketchpad()
+      this.loadUserlist()
 
       this.bindWebSocket()
 
-      this.log(`Welcome, ${this.local_user}!`);
+      this.log(`Welcome, ${this.username}!`);
     }
   }
 </script>
 
 <style lang="scss" scoped>
+  .modal-dialog {
+    color: black;
+  }
   .parent{
     height: 100%;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     overflow: hidden;
   }
   .header {
@@ -268,7 +313,7 @@
     overflow:auto;
     width:100%;
     height:100%;
-    flex-basis: 75%;
+    flex-basis: 80%;
     overflow: hidden;
     canvas {
       object-fit: contain;
@@ -279,8 +324,9 @@
   }
   .panel {
     display: flex;
+    flex-direction: column;
     width: 100%;
-    flex-basis: 25%;
+    flex-basis: 20%;
     .colorside {
       flex-basis: 0%;
       canvas {
