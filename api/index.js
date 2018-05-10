@@ -5,7 +5,6 @@ const app = Express()
 const server = require('http').Server(app)
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
-const io = require('./modules/io')(server)
 
 global.pgp = require('pg-promise')();
 global.db = global.pgp({
@@ -15,6 +14,7 @@ global.db = global.pgp({
   user: 'sketchpad',
   password: 'sketchpad'
 })
+global.io = require('./modules/io')(server)
 
 app.use(morgan('dev'))
 

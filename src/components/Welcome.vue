@@ -1,23 +1,26 @@
 <template>
-  <b-alert show class="dialog" variant="success">
-    <h1>Welcome to Online Sketchpad</h1>
-    <transition name="slide-fade" mode="out-in" appear>
-      <div class="row" v-if="mode === undefined" key="selector">
-        <b-button class="mode" key="join" variant="success" @click="join()">Join</b-button>
-        <b-button class="mode" key="create" variant="primary" @click="create()">Create</b-button>
-      </div>
-      <b-alert show v-if="mode === 'join'" key="join" class="detail-dialog">
-        <b-form-input v-model="roomNumber" class="roomNumber-input" type="text" placeholder="Enter Room Number"></b-form-input>
-        <b-button class="mode" variant="success" @click="joinRoom(roomNumber)">Join Room</b-button>
-        <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
-      </b-alert>
-      <b-alert show v-if="mode === 'create'" key="create" class="detail-dialog">
-        <div>Your Room Number: <strong>{{newRoomNumber}}</strong></div>
-        <b-button class="mode" variant="success" @click="joinRoom(newRoomNumber)">Enter Room</b-button>
-        <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
-      </b-alert>
-    </transition>
-  </b-alert>
+  <div>
+    <b-alert variant="danger" :show="error !== undefined">{{error}}</b-alert>
+    <b-alert show class="dialog" variant="success">
+      <h1>Welcome to Online Sketchpad</h1>
+      <transition name="slide-fade" mode="out-in" appear>
+        <div class="row" v-if="mode === undefined" key="selector">
+          <b-button class="mode" key="join" variant="success" @click="join()">Join</b-button>
+          <b-button class="mode" key="create" variant="primary" @click="create()">Create</b-button>
+        </div>
+        <b-alert show v-if="mode === 'join'" key="join" class="detail-dialog">
+          <b-form-input v-model="roomNumber" class="roomNumber-input" type="text" placeholder="Enter Room Number"></b-form-input>
+          <b-button class="mode" variant="success" @click="joinRoom(roomNumber)">Join Room</b-button>
+          <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
+        </b-alert>
+        <b-alert show v-if="mode === 'create'" key="create" class="detail-dialog">
+          <div>Your Room Number: <strong>{{newRoomNumber}}</strong></div>
+          <b-button class="mode" variant="success" @click="joinRoom(newRoomNumber)">Enter Room</b-button>
+          <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
+        </b-alert>
+      </transition>
+    </b-alert>
+  </div>
 </template>
 
 <script>
@@ -27,7 +30,8 @@ export default {
     return {
       mode: undefined,
       roomNumber: undefined,
-      newRoomNumber: undefined
+      newRoomNumber: undefined,
+      error: undefined
     }
   },
   methods: {
@@ -36,11 +40,30 @@ export default {
     },
     create () {
       this.newRoomNumber = Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
+      // this.newRoomNumber = '123456'
+      this.$http.get(`/api/sketchpads/${this.newRoomNumber}`).then(() => {
+        this.create()
+      }).catch(() => {})
+
       this.mode = 'create'
     },
     joinRoom (roomNumber) {
-      this.$store.commit('roomNumber', {roomNumber: roomNumber})
-      this.$router.push('/main')
+      this.$http.get(`/api/sketchpads/${roomNumber}`).then(() => {
+        if (this.mode === 'join') {
+          this.$store.commit('roomNumber', {roomNumber: roomNumber})
+          this.$router.push('/main')
+        }
+
+      }).catch(() => {
+        if (this.mode === 'create') {
+          this.$http.post(`/api/sketchpads/${roomNumber}`).then(() => {
+            this.$store.commit('roomNumber', {roomNumber: roomNumber})
+            this.$router.push('/main')
+          })
+        } else {
+          this.error = 'Cannot join room'
+        }
+      })
     }
   }
 }

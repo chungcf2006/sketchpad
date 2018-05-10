@@ -14,12 +14,20 @@
 
       <div class="leftside" ref="leftside">
         <div>
-        <b-button id="download" @click="download()"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
-        <b-button id="clear" @click="save()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
-          <b-button id="paint-brush" :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-        <b-button id="square" :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
-        <b-button id="circle" :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
-          <b-button id="eraser" :variant="sketchpad.mode==='eraser'?'success':'secondary'" @click="sketchpad.mode='eraser'"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+          <b-button @click="download()"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+          <b-button @click="clearCanvas()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
+          <b-button @click="save()"><font-awesome-icon :icon="['fas', 'save']" /></b-button>
+        </div>
+          <b-button :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+          <b-button :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
+          <b-button :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+        <div>
+          <b-button :variant="!sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=false"><font-awesome-icon :icon="['fas', 'edit']" /></b-button>
+          <b-button :variant="sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=true"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+        </div>
+        <div>
+          <b-button :variant="!sketchpad.fill?'success':'secondary'" @click="sketchpad.fill=false"><font-awesome-icon :icon="['far', 'circle']" /></b-button>
+          <b-button :variant="sketchpad.fill?'success':'secondary'" @click="sketchpad.fill=true"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
         </div>
         <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
         <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
@@ -28,9 +36,9 @@
       </div>
       <div class="online_box">
         <b-alert show class="header">#{{roomNumber}}</b-alert>
-        <b-alert show variant="secondary" id="onlineUsers">
+        <b-alert :show="onlineUsers !== undefined" variant="secondary" id="onlineUsers">
           <ul>
-            <li v-for="user in onlineUsers" :key="user.name"><online-display :user="user"></online-display></li>
+            <li v-for="user in onlineUsers" :key="user.name" v-if="user.pen"><online-display :user="user"></online-display></li>
           </ul>
         </b-alert>
       </div>
@@ -50,10 +58,10 @@
     },
     data () {
       return {
-        onlineUsers: [],
-        username: 'john',
-        sketchpad: {canvas: undefined, ctx: undefined, imageData: undefined, mode: 'brush', erase: false},
-
+        onlineUsers: undefined,
+        username: undefined,
+        sketchpad: {canvas: undefined, ctx: undefined, imageData: undefined, mode: 'brush', erase: false, fill: false},
+        forceSquare: false,
         pen: {dia: 5, r: undefined, b: undefined, g: undefined, a: 255},
         mouse: {x: 0, y: 0, down: 0},
         isDrawing: undefined, lastPoint: undefined,
@@ -61,7 +69,8 @@
         console_box: [],
         socket: undefined,
         pendingSend: {},
-        setUsername: {username: undefined, error: undefined}
+        setUsername: {username: undefined, error: undefined},
+        saved: true
       }
     },
     computed: {
@@ -81,10 +90,10 @@
       'sketchpad.erase': function () {
         if (this.sketchpad.erase) {
           this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
-          this.log('Yu using eraser')
+          this.log('Eraser')
         } else {
           this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-          this.log('Yu using edit')
+          this.log('Edit')
         }
         this.log(`${this.local_user} using ${this.sketchpad.mode}`);
       }
@@ -98,13 +107,18 @@
       },
       verifyUsername (e) {
         e.preventDefault()
-        this.$http.post(`/api/sketchpads/${this.roomNumber}/login`, {username: this.setUsername.username}).then(response => {
-          console.log(response)
+        if (this.setUsername.username === undefined) {
+          this.setUsername.error = 'Please enter Username'
+          return
+        }
+        this.$http.post(`/api/sketchpads/${this.roomNumber}/members/${this.setUsername.username}`).then(() => {
           localStorage.setItem('username', this.setUsername.username)
           this.username = this.setUsername.username
+          this.init()
+          this.log(`Welcome, ${this.username}!`)
           this.$refs.setUsername.hide()
         }).catch(error => {
-          this.setUsername.error = "Username already exists"
+          this.setUsername.error = error.data
         })
       },
       loadUserlist () {
@@ -115,37 +129,37 @@
       sketchpad_mouseDown (e) {
         this.isDrawing = true;
         this.lastPoint = { x: this.sketchpad.canvas.width * (e.clientX/this.sketchpad.canvas.offsetWidth), y: this.sketchpad.canvas.height * (e.clientY/this.sketchpad.canvas.offsetHeight)};
-
-        if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight < (16/9)) {
-          const blank = (this.sketchpad.canvas.offsetHeight - (this.sketchpad.canvas.offsetWidth*9/16))/2
-          this.lastPoint.y = this.sketchpad.canvas.height * ((e.clientY - blank)/(this.sketchpad.canvas.offsetWidth*9/16))
+        if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight < (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
+          const blank = (this.sketchpad.canvas.offsetHeight - (this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))/2
+          this.lastPoint.y = this.sketchpad.canvas.height * ((e.clientY - blank)/(this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))
         }
-        if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight > (16/9)) {
-          const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*16/9))/2
-          this.lastPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*16/9))
+        if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight > (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
+          const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))/2
+          this.lastPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))
         }
 
         this.log('Key Down')
-        this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, 1920, 1080)
         this.pendingSend.pen = this.pen
         this.pendingSend.erase = this.sketchpad.erase
         this.pendingSend.mode = this.sketchpad.mode
+        this.pendingSend.fill = this.sketchpad.fill
         this.pendingSend.coordinates = [this.lastPoint]
         this.setPen(this.pen)
-
+        this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+        this.socket.emit('geometry_start', {username: this.username})
       },
       sketchpad_mouseMove (e) {
         if (!this.isDrawing) return;
 
         var currentPoint = {};
 
-        if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight < (16/9)) {
-          const blank = (this.sketchpad.canvas.offsetHeight - (this.sketchpad.canvas.offsetWidth*9/16))/2
-          currentPoint.y = this.sketchpad.canvas.height * ((e.clientY - blank)/(this.sketchpad.canvas.offsetWidth*9/16))
+        if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight < (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
+          const blank = (this.sketchpad.canvas.offsetHeight - (this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))/2
+          currentPoint.y = this.sketchpad.canvas.height * ((e.clientY - blank)/(this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))
           currentPoint.x = this.sketchpad.canvas.width * (e.clientX/this.sketchpad.canvas.offsetWidth)
-        } else if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight > (16/9)) {
-          const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*16/9))/2
-          currentPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*16/9))
+        } else if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight > (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
+          const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))/2
+          currentPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))
           currentPoint.y = this.sketchpad.canvas.height * (e.clientY/this.sketchpad.canvas.offsetHeight)
         } else {
            currentPoint.x = this.sketchpad.canvas.width * (e.clientX/this.sketchpad.canvas.offsetWidth)
@@ -159,41 +173,67 @@
         if(this.sketchpad.mode === 'brush'){
           this.draw(this.lastPoint, currentPoint)
           this.pendingSend.coordinates[0] = this.lastPoint
-          this.pendingSend.coordinates[1] = currentPoint
           this.lastPoint = currentPoint
         } else if(this.sketchpad.mode === 'square'){
-          this.draw_rect(this.lastPoint, currentPoint)
-          this.pendingSend.coordinates[1] = currentPoint
+          this.draw_rect(this.lastPoint, currentPoint, this.sketchpad.fill)
         }else if(this.sketchpad.mode === 'circle'){
-          this.draw_Arc(this.lastPoint, currentPoint)
+          this.draw_Arc(this.lastPoint, currentPoint, this.sketchpad.fill)
         }
+        this.pendingSend.coordinates[1] = currentPoint
         this.socket.emit('new_stroke', this.pendingSend)
       },
       sketchpad_mouseUp () {
-        this.sketchpad.ctx.save()
+        this.saved = false
         this.isDrawing = false
         this.lastPoint = undefined
         this.log('Key Up')
       },
-      clearCanvas (canvas, ctx) {
-        ctx.clearRect(0, 0,
-          canvas.width, canvas.height);
+      clearCanvas () {
+        this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height);
       },
-      draw_Arc (last, current){
-        this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
-        this.sketchpad.ctx.beginPath()
-        this.sketchpad.ctx.arc(last.x, last.y, last.x-current.x, 0, 2*Math.PI)
-        this.sketchpad.ctx.closePath()
-        this.sketchpad.ctx.stroke()
-      },
-      draw_rect(last, current) {
+      draw_Arc (last, current, fill){
         if (this.sketchpad.imageData !== undefined) {
           this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
         }
         this.sketchpad.ctx.beginPath()
+        if (this.forceSquare) {
+          const width = Math.abs(last.x-current.x)
+          const height = Math.abs(last.y-current.y)
+          if (height > width) {
+            current.y = last.y + width
+          } else {
+            current.x = last.x + height
+          }
+        }
+        this.sketchpad.ctx.ellipse((last.x+current.x)/2, (last.y+current.y)/2, Math.abs((last.x+current.x)/2-last.x), Math.abs((last.y+current.y)/2-last.y), 0, 0, 2*Math.PI)
+        this.sketchpad.ctx.closePath()
+        if (fill) {
+          this.sketchpad.ctx.fill()
+        } else {
+          this.sketchpad.ctx.stroke()
+        }
+      },
+      draw_rect(last, current, fill) {
+        if (this.sketchpad.imageData !== undefined) {
+          this.sketchpad.ctx.putImageData(this.sketchpad.imageData, 0, 0)
+        }
+        this.sketchpad.ctx.beginPath()
+        if (this.forceSquare) {
+          const width = Math.abs(last.x-current.x)
+          const height = Math.abs(last.y-current.y)
+          if (height > width) {
+            current.y = last.y + (last.x-current.x)
+          } else {
+            current.x = last.x + (last.y-current.y)
+          }
+        }
         this.sketchpad.ctx.rect(last.x, last.y, current.x-last.x, current.y-last.y)
         this.sketchpad.ctx.closePath()
-        this.sketchpad.ctx.stroke()
+        if (fill) {
+          this.sketchpad.ctx.fill()
+        } else {
+          this.sketchpad.ctx.stroke()
+        }
       },
       draw (last, current) {
         this.sketchpad.ctx.beginPath()
@@ -202,21 +242,26 @@
         this.sketchpad.ctx.stroke()
       },
       save () {
-        const fd = new FormData()
-        this.sketchpad.canvas.toBlob((blob) => {
-          fd.append('sketchpad', blob)
-          this.$http.post(`/api/sketchpads/${this.roomNumber}`, fd, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
+        if (!this.saved) {
+          const fd = new FormData()
+          this.sketchpad.canvas.toBlob((blob) => {
+            fd.append('sketchpad', blob)
+            this.$http.post(`/api/sketchpads/${this.roomNumber}/image`, fd, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            }, () => {
+              this.log('Saved')
+              this.save = true
+            })
           })
-        })
+        }
       },
       defineSketchpad () {
         this.sketchpad.canvas = this.$refs.sketchpad;
 
-        this.sketchpad.canvas.width = 1920
-        this.sketchpad.canvas.height = 1080
+        this.sketchpad.canvas.width = 1280
+        this.sketchpad.canvas.height = 720
 
         if(this.sketchpad.canvas.getContext){
           this.sketchpad.ctx = this.sketchpad.canvas.getContext('2d');
@@ -226,7 +271,13 @@
           img.onload = () => {
             this.sketchpad.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
           }
-          img.src = `/api/sketchpads/${this.roomNumber}`
+          // img.onerror = () => {
+          //   this.sketchpad.ctx.beginPath()
+          //   this.sketchpad.ctx.rect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+          //   this.sketchpad.ctx.fillStyle = 'black'
+          //   this.sketchpad.ctx.fill()
+          // }
+          img.src = `/api/sketchpads/${this.roomNumber}/image`
         }
       },
       bindWebSocket () {
@@ -236,6 +287,11 @@
           }
         })
         this.socket.open()
+        this.socket.on('geometry_start', data => {
+          if (data.username !== this.username) {
+            this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+          }
+        })
         this.socket.on('draw', data => {
           this.setPen(data.pen)
           const originalComposite = this.sketchpad.ctx.globalCompositeOperation
@@ -244,6 +300,7 @@
           } else {
             this.sketchpad.ctx.globalCompositeOperation = 'source-over'
           }
+
           switch (data.mode) {
             case 'brush':
               for (let i = 0; i < data.coordinates.length - 1; i++) {
@@ -251,7 +308,10 @@
               }
               break
             case 'square':
-              this.draw_rect(data.coordinates[0], data.coordinates[1])
+              this.draw_rect(data.coordinates[0], data.coordinates[1], data.fill)
+              break
+            case 'circle':
+              this.draw_Arc(data.coordinates[0], data.coordinates[1], data.fill)
               break
           }
 
@@ -263,9 +323,13 @@
             this.onlineUsers[index].pen = data.pen
           }
         })
+        this.socket.on('member_list', () => {
+          this.loadUserlist()
+        })
       },
       setPen (pen) {
         this.sketchpad.ctx.strokeStyle = `rgba(${pen.r}, ${pen.g}, ${pen.b}, ${pen.a/255})`
+        this.sketchpad.ctx.fillStyle = `rgba(${pen.r}, ${pen.g}, ${pen.b}, ${pen.a/255})`
         this.sketchpad.ctx.lineWidth = pen.dia
       },
       download (){
@@ -279,27 +343,54 @@
         document.body.appendChild(dlLink);
         dlLink.click();
         document.body.removeChild(dlLink);
+      },
+      init () {
+        this.defineSketchpad()
+        this.loadUserlist()
+
+        this.bindWebSocket()
+        this.pen.r = Math.floor(Math.random()*256)
+        this.pen.g = Math.floor(Math.random()*256)
+        this.pen.b = Math.floor(Math.random()*256)
+
+        setInterval(() => {
+          this.save()
+        }, 10000)
+
       }
     },
     mounted() {
+      if (this.$store.state.roomNumber === undefined) {
+        this.$router.push('/')
+        // this.$store.commit('roomNumber', {roomNumber: '123456'})
+      }
+
+      this.init()
+
+      document.addEventListener('keydown', (e) => {
+        if (e.keyCode === 16) {
+          this.forceSquare = true
+        }
+      })
+
+      document.addEventListener('keyup', (e) => {
+        if (e.keyCode === 16) {
+          this.forceSquare = false
+        }
+      })
+
       this.username = localStorage.getItem('username')
       if (this.username === null) {
         this.$refs.setUsername.show()
+      } else {
+        if (this.setUsername.username === undefined) {
+          this.$http.post(`/api/sketchpads/${this.roomNumber}/members/${this.username}`).catch(error => {
+            this.setUsername.error = error.data
+            this.$refs.setUsername.show()
+          })
+        }
+        this.log(`Welcome, ${this.username}!`)
       }
-      if (this.$store.state.roomNumber === undefined) {
-        // this.$router.push('/')
-        this.$store.commit('roomNumber', {roomNumber: '123456'})
-      }
-      this.pen.r = Math.floor(Math.random()*256);
-      this.pen.g = Math.floor(Math.random()*256);
-      this.pen.b = Math.floor(Math.random()*256);
-
-      this.defineSketchpad()
-      this.loadUserlist()
-
-      this.bindWebSocket()
-
-      this.log(`Welcome, ${this.username}!`);
     }
   }
 </script>
@@ -366,6 +457,14 @@
       height: 100%;
       overflow: auto;
       text-align: left;
+      background-color: rgba(0, 0, 0, 0.25);
+      padding-left: 1em;
+      padding-right: 1em;
+      div {
+        width: 100%;
+        text-overflow: clip;
+        overflow: hidden;
+      }
     }
     .online_box {
       flex-basis: 25%;

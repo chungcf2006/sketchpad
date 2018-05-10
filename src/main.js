@@ -7,11 +7,13 @@ import Vuex from 'vuex'
 import fontawesome from '@fortawesome/fontawesome'
 import FontAwesomeIcon from '@fortawesome/vue-fontawesome'
 import solid from '@fortawesome/fontawesome-free-solid'
+import regular from '@fortawesome/fontawesome-free-regular'
 
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 
 fontawesome.library.add(solid)
+fontawesome.library.add(regular)
 
 Vue.config.productionTip = false
 
@@ -41,7 +43,13 @@ const router = new VueRouter({
   routes: [
     { path: '/', component: Welcome },
     { path: '/main', component: Main }
-  ]
+  ],
+  beforeRouteLeave (to, from, next) {
+    if (from === '/main') {
+      this.socket.close()
+    }
+    next()
+  }
 })
 
 new Vue({

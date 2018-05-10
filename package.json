@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome": "^1.1.7",
+    "@fortawesome/fontawesome-free-regular": "^5.0.12",
     "@fortawesome/fontawesome-free-solid": "^5.0.12",
     "@fortawesome/vue-fontawesome": "0.0.22",
     "bootstrap-vue": "^2.0.0-rc.9",
@@ -33,11 +34,11 @@
     "devServer": {
       "proxy": {
         "/socket.io": {
-          "target": "http://localhost:8081/",
+          "target": "http://40.65.190.66:8081/",
           "changeOrigin": true
         },
         "/api": {
-          "target": "http://csci4140.southeastasia.cloudapp.azure.com:8081/",
+          "target": "http://40.65.190.66:8081/",
           "changeOrigin": true,
           "pathRewrite": {
             "^/api": ""
