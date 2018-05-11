@@ -258,7 +258,6 @@
               }
             }).then(() => {
               this.log('Saved')
-              this.socket.emit('save')
             })
           })
         }
@@ -313,8 +312,6 @@
             this.draw_Arc(data.coordinates[0], data.coordinates[1], data.fill)
             break
         }
-        console.log('drawing')
-
         this.sketchpad.ctx.globalCompositeOperation = originalComposite
       },
       bindWebSocket () {

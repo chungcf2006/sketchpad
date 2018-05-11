@@ -45,6 +45,7 @@ app.post('/:sketchpadID/image', upload.single('sketchpad'), function (req, res) 
       if (error) {
         throw error
       }
+      io.to(sketchpadID).emit('save')
       redisClient.del(`${sketchpadID}:uncommited`)
       res.end()
     })
