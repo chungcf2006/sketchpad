@@ -8,10 +8,15 @@ module.exports = function (server) {
     var username
     socket.join(sketchpadID)
     socket.on('new_stroke', function (data) {
+      redisClient.rpush(`${sketchpadID}:uncommited`, JSON.stringify({type: 'draw', data: data}))
       io.to(sketchpadID).emit('draw', data)
     })
     socket.on('geometry_start', function (data) {
+      redisClient.rpush(`${sketchpadID}:uncommited`, JSON.stringify({type: 'start_save', data: data}))
       io.to(sketchpadID).emit('geometry_start', data)
+    })
+    socket.on('clear_canvas', function () {
+      io.to(sketchpadID).emit('clear')
     })
     socket.on('update_pen', function (data) {
       if (username === undefined) {

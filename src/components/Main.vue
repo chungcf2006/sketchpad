@@ -14,26 +14,32 @@
 
       <div class="leftside" ref="leftside">
         <div>
-          <b-button @click="download()"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
-          <b-button @click="clearCanvas()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
-          <b-button @click="save()"><font-awesome-icon :icon="['fas', 'save']" /></b-button>
+          <div>
+            <b-button @click="download()"><font-awesome-icon :icon="['fas', 'download']" /></b-button>
+            <b-button @click="clearCanvas()"><font-awesome-icon :icon="['fas', 'trash']" /></b-button>
+            <b-button @click="save()"><font-awesome-icon :icon="['fas', 'save']" /></b-button>
+          </div>
+            <b-button :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
+            <b-button :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
+            <b-button :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+          <div>
+            <b-button :variant="!sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=false"><font-awesome-icon :icon="['fas', 'edit']" /></b-button>
+            <b-button :variant="sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=true"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+          </div>
+          <div>
+            <b-button :variant="!sketchpad.fill?'success':'secondary'" @click="sketchpad.fill=false"><font-awesome-icon :icon="['far', 'circle']" /></b-button>
+            <b-button :variant="sketchpad.fill?'success':'secondary'" @click="sketchpad.fill=true"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
+          </div>
         </div>
-          <b-button :variant="sketchpad.mode==='brush'?'success':'secondary'" @click="sketchpad.mode='brush'"><font-awesome-icon :icon="['fas', 'paint-brush']" /></b-button>
-          <b-button :variant="sketchpad.mode==='square'?'success':'secondary'" @click="sketchpad.mode='square'"><font-awesome-icon :icon="['fas', 'square']" /></b-button>
-          <b-button :variant="sketchpad.mode==='circle'?'success':'secondary'" @click="sketchpad.mode='circle'"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
         <div>
-          <b-button :variant="!sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=false"><font-awesome-icon :icon="['fas', 'edit']" /></b-button>
-          <b-button :variant="sketchpad.erase?'success':'secondary'" @click="sketchpad.erase=true"><font-awesome-icon :icon="['fas', 'eraser']" /></b-button>
+          <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
+          <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
+          <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
+          <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
         </div>
-        <div>
-          <b-button :variant="!sketchpad.fill?'success':'secondary'" @click="sketchpad.fill=false"><font-awesome-icon :icon="['far', 'circle']" /></b-button>
-          <b-button :variant="sketchpad.fill?'success':'secondary'" @click="sketchpad.fill=true"><font-awesome-icon :icon="['fas', 'circle']" /></b-button>
-        </div>
-        <div class="slide-control"><input id="dia" v-model="pen.dia" type="range" min="1" max="30" step="0.1" />{{pen.dia}}</div>
-        <div class="slide-control"><input id="r" v-model="pen.r" type="range" min="0" max="255" />{{pen.r}}</div>
-        <div class="slide-control"><input id="g" v-model="pen.g" type="range" min="0" max="255" />{{pen.g}}</div>
-        <div class="slide-control"><input id="b" v-model="pen.b" type="range" min="0" max="255" />{{pen.b}}</div>
       </div>
+      <b-button @click="leaveRoom()">Leave Room</b-button>
+      <b-button @click="$refs.setUsername.show()">Change Name</b-button>
       <div class="online_box">
         <b-alert show class="header">#{{roomNumber}}</b-alert>
         <b-alert :show="onlineUsers !== undefined" variant="secondary" id="onlineUsers">
@@ -189,7 +195,8 @@
         this.log('Key Up')
       },
       clearCanvas () {
-        this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height);
+        console.log(this.socket.emit('clear_canvas'))
+        this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
       },
       draw_Arc (last, current, fill){
         if (this.sketchpad.imageData !== undefined) {
@@ -250,9 +257,9 @@
               headers: {
                 'Content-Type': 'multipart/form-data'
               }
-            }, () => {
+            }).then(() => {
               this.log('Saved')
-              this.save = true
+              this.saved = true
             })
           })
         }
@@ -270,15 +277,46 @@
           var img = document.createElement('img')
           img.onload = () => {
             this.sketchpad.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+            this.drawUncommited()
           }
-          // img.onerror = () => {
-          //   this.sketchpad.ctx.beginPath()
-          //   this.sketchpad.ctx.rect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
-          //   this.sketchpad.ctx.fillStyle = 'black'
-          //   this.sketchpad.ctx.fill()
-          // }
+          img.onerror = () => {
+            this.drawUncommited()
+          }
           img.src = `/api/sketchpads/${this.roomNumber}/image`
         }
+      },
+      drawUncommited () {
+        this.$http.get(`/api/sketchpads/${this.roomNumber}/uncommited`).then(response => {
+          response.data.forEach(entry => {
+            const data = entry.data
+            switch (entry.type) {
+              case 'draw':
+                this.saved = false
+                this.setPen(data.pen)
+                const originalComposite = this.sketchpad.ctx.globalCompositeOperation
+                if (data.erase) {
+                  this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+                } else {
+                  this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+                }
+                switch (data.mode) {
+                  case 'brush':
+                    this.draw(data.coordinates[0], data.coordinates[1])
+                    break
+                  case 'square':
+                    this.draw_rect(data.coordinates[0], data.coordinates[1], data.fill)
+                    break
+                  case 'circle':
+                    this.draw_Arc(data.coordinates[0], data.coordinates[1], data.fill)
+                    break
+                }
+                console.log('drawing')
+
+                this.sketchpad.ctx.globalCompositeOperation = originalComposite
+                break
+            }
+          })
+        })
       },
       bindWebSocket () {
         this.socket = io({
@@ -292,7 +330,12 @@
             this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
           }
         })
+        this.socket.on('clear', data => {
+          this.saved = false
+          this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+        })
         this.socket.on('draw', data => {
+          this.saved = false
           this.setPen(data.pen)
           const originalComposite = this.sketchpad.ctx.globalCompositeOperation
           if (data.erase) {
@@ -319,9 +362,10 @@
         })
         this.socket.on('display_update_pen', data => {
           let index
-          if ((index = this.onlineUsers.findIndex(user => user.username === data.username)) != -1) {
-            this.onlineUsers[index].pen = data.pen
+          if ((this.onlineUsers !== undefined) && ((index = this.onlineUsers.findIndex(user => user.username === data.username)) != -1)) {
+              this.onlineUsers[index].pen = data.pen
           }
+
         })
         this.socket.on('member_list', () => {
           this.loadUserlist()
@@ -333,16 +377,15 @@
         this.sketchpad.ctx.lineWidth = pen.dia
       },
       download (){
-        var canvasElement = this.sketchpad.canvas;
-        var MIME_TYPE = "image/png";
-        var imgURL = canvasElement.toDataURL(MIME_TYPE);
-        var dlLink = document.createElement('a');
-        dlLink.download = this.$store.state.roomNumber+"_"+moment().format(this.date_format);
-        dlLink.href = imgURL;
-        dlLink.dataset.downloadurl = [MIME_TYPE, dlLink.download, dlLink.href].join(':');
-        document.body.appendChild(dlLink);
-        dlLink.click();
-        document.body.removeChild(dlLink);
+        const MIME_TYPE = 'image/png'
+        var imgURL = this.sketchpad.canvas.toDataURL(MIME_TYPE)
+        var dlLink = document.createElement('a')
+        dlLink.download = this.$store.state.roomNumber+"_"+moment().format(this.date_format)
+        dlLink.href = imgURL
+        dlLink.dataset.downloadurl = [MIME_TYPE, dlLink.download, dlLink.href].join(':')
+        document.body.appendChild(dlLink)
+        dlLink.click()
+        document.body.removeChild(dlLink)
       },
       init () {
         this.defineSketchpad()
@@ -354,9 +397,15 @@
         this.pen.b = Math.floor(Math.random()*256)
 
         setInterval(() => {
-          this.save()
+          if (this.onlineUsers.findIndex(user => user.username === this.username) === 0) {
+            this.save()
+          }
         }, 10000)
 
+      },
+      leaveRoom () {
+        this.socket.close()
+        this.$router.push('/')
       }
     },
     mounted() {
@@ -442,8 +491,11 @@
       }
     }
     .leftside {
-      flex-basis: 25%;
+      display: flex;
       padding: 3px;
+      div {
+        flex-basis: 50%;
+      }
       .slide-control {
         display: flex;
         width: 100%;

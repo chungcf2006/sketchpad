@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome": "^1.1.7",
-    "@fortawesome/fontawesome-free-regular": "^5.0.12",
+    "@fortawesome/fontawesome-free-regular": "^5.0.13",
     "@fortawesome/fontawesome-free-solid": "^5.0.12",
     "@fortawesome/vue-fontawesome": "0.0.22",
     "bootstrap-vue": "^2.0.0-rc.9",
@@ -34,11 +34,12 @@
     "devServer": {
       "proxy": {
         "/socket.io": {
-          "target": "http://40.65.190.66:8081/",
-          "changeOrigin": true
+          "target": "http://localhost:8081/",
+          "changeOrigin": true,
+          "ws": true
         },
         "/api": {
-          "target": "http://40.65.190.66:8081/",
+          "target": "http://localhost:8081/",
           "changeOrigin": true,
           "pathRewrite": {
             "^/api": ""

@@ -45,6 +45,7 @@ const router = new VueRouter({
     { path: '/main', component: Main }
   ],
   beforeRouteLeave (to, from, next) {
+    console.log(from)
     if (from === '/main') {
       this.socket.close()
     }

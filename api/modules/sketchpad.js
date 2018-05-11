@@ -27,16 +27,25 @@ app.post('/:sketchpadID', async function (req, res) {
   }
 })
 
+app.get('/:sketchpadID/uncommited', async function (req, res) {
+  const sketchpadID = req.params.sketchpadID
+  var list = await redisClient.lrange(`${sketchpadID}:uncommited`, 0, -1)
+  list = list.map(entry => JSON.parse(entry))
+  res.json(list)
+})
+
 app.get('/:sketchpadID/image', function (req, res) {
   res.type('png').sendFile(path.resolve('../sketchpads', req.params.sketchpadID))
 })
 
 app.post('/:sketchpadID/image', upload.single('sketchpad'), function (req, res) {
   try {
+    const sketchpadID = req.params.sketchpadID
     fs.writeFile(path.resolve('../sketchpads', req.params.sketchpadID), req.file.buffer, function (error) {
       if (error) {
         throw error
       }
+      console.log(redisClient.del(`${sketchpadID}:uncommited`))
       res.end()
     })
   } catch (error) {
