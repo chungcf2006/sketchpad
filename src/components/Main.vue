@@ -388,6 +388,7 @@
     mounted() {
       if (this.$store.state.roomNumber === undefined) {
         this.$router.push('/')
+        return
         // this.$store.commit('roomNumber', {roomNumber: '123456'})
       }
 
