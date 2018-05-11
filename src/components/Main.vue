@@ -376,9 +376,7 @@
         this.pen.b = Math.floor(Math.random()*256)
 
         setInterval(() => {
-          if (this.onlineUsers.findIndex(user => user.username === this.username) === 0) {
-            this.save()
-          }
+          this.save()
         }, 10000)
 
       },
