@@ -39,7 +39,6 @@
         </div>
       </div>
       <b-button @click="leaveRoom()">Leave Room</b-button>
-      <b-button @click="$refs.setUsername.show()">Change Name</b-button>
       <div class="online_box">
         <b-alert show class="header">#{{roomNumber}}</b-alert>
         <b-alert :show="onlineUsers !== undefined" variant="secondary" id="onlineUsers">
@@ -259,7 +258,7 @@
               }
             }).then(() => {
               this.log('Saved')
-              this.saved = true
+              this.socket.emit('save')
             })
           })
         }
@@ -288,35 +287,35 @@
       drawUncommited () {
         this.$http.get(`/api/sketchpads/${this.roomNumber}/uncommited`).then(response => {
           response.data.forEach(entry => {
-            const data = entry.data
-            switch (entry.type) {
-              case 'draw':
-                this.saved = false
-                this.setPen(data.pen)
-                const originalComposite = this.sketchpad.ctx.globalCompositeOperation
-                if (data.erase) {
-                  this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
-                } else {
-                  this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-                }
-                switch (data.mode) {
-                  case 'brush':
-                    this.draw(data.coordinates[0], data.coordinates[1])
-                    break
-                  case 'square':
-                    this.draw_rect(data.coordinates[0], data.coordinates[1], data.fill)
-                    break
-                  case 'circle':
-                    this.draw_Arc(data.coordinates[0], data.coordinates[1], data.fill)
-                    break
-                }
-                console.log('drawing')
-
-                this.sketchpad.ctx.globalCompositeOperation = originalComposite
-                break
+            if (entry.type === 'draw') {
+              this.remoteDraw(entry.data)
             }
           })
         })
+      },
+      remoteDraw (data) {
+        this.saved = false
+        this.setPen(data.pen)
+        const originalComposite = this.sketchpad.ctx.globalCompositeOperation
+        if (data.erase) {
+          this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
+        } else {
+          this.sketchpad.ctx.globalCompositeOperation = 'source-over'
+        }
+        switch (data.mode) {
+          case 'brush':
+            this.draw(data.coordinates[0], data.coordinates[1])
+            break
+          case 'square':
+            this.draw_rect(data.coordinates[0], data.coordinates[1], data.fill)
+            break
+          case 'circle':
+            this.draw_Arc(data.coordinates[0], data.coordinates[1], data.fill)
+            break
+        }
+        console.log('drawing')
+
+        this.sketchpad.ctx.globalCompositeOperation = originalComposite
       },
       bindWebSocket () {
         this.socket = io({
@@ -330,35 +329,15 @@
             this.sketchpad.imageData = this.sketchpad.ctx.getImageData(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
           }
         })
-        this.socket.on('clear', data => {
+        this.socket.on('clear', () => {
           this.saved = false
           this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
         })
+        this.socket.on('save', () => {
+          this.saved = true
+        })
         this.socket.on('draw', data => {
-          this.saved = false
-          this.setPen(data.pen)
-          const originalComposite = this.sketchpad.ctx.globalCompositeOperation
-          if (data.erase) {
-            this.sketchpad.ctx.globalCompositeOperation = 'destination-out'
-          } else {
-            this.sketchpad.ctx.globalCompositeOperation = 'source-over'
-          }
-
-          switch (data.mode) {
-            case 'brush':
-              for (let i = 0; i < data.coordinates.length - 1; i++) {
-                this.draw(data.coordinates[i], data.coordinates[i+1])
-              }
-              break
-            case 'square':
-              this.draw_rect(data.coordinates[0], data.coordinates[1], data.fill)
-              break
-            case 'circle':
-              this.draw_Arc(data.coordinates[0], data.coordinates[1], data.fill)
-              break
-          }
-
-          this.sketchpad.ctx.globalCompositeOperation = originalComposite
+          this.remoteDraw(data)
         })
         this.socket.on('display_update_pen', data => {
           let index

@@ -18,6 +18,9 @@ module.exports = function (server) {
     socket.on('clear_canvas', function () {
       io.to(sketchpadID).emit('clear')
     })
+    socket.on('save', function () {
+      io.to(sketchpadID).emit('save')
+    })
     socket.on('update_pen', function (data) {
       if (username === undefined) {
         username = data.username
