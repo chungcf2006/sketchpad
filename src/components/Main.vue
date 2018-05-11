@@ -195,7 +195,6 @@
       },
       clearCanvas () {
         console.log(this.socket.emit('clear_canvas'))
-        this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
       },
       draw_Arc (last, current, fill){
         if (this.sketchpad.imageData !== undefined) {
@@ -329,6 +328,7 @@
         this.socket.on('clear', () => {
           this.saved = false
           this.sketchpad.ctx.clearRect(0, 0, this.sketchpad.canvas.width, this.sketchpad.canvas.height)
+          this.save()
         })
         this.socket.on('save', () => {
           this.saved = true
