@@ -5,7 +5,7 @@
       <b-input type="text" placeholder="Please set your screen name" v-model="setUsername.username" />
     </b-modal>
     <div id="sketchpadapp" ref="sketchpadapp">
-      <canvas ref="sketchpad" @mouseup="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @mousemove="sketchpad_mouseMove"></canvas>
+      <canvas ref="sketchpad" @mouseup="sketchpad_mouseUp" @touchend="sketchpad_mouseUp" @mousedown="sketchpad_mouseDown" @touchstart="sketchpad_mouseDown" @touchmove="sketchpad_mouseMove" @mousemove="sketchpad_mouseMove"></canvas>
     </div>
     <div class="panel">
       <div id="console_box" ref="console_box">
@@ -132,15 +132,22 @@
         })
       },
       sketchpad_mouseDown (e) {
-        this.isDrawing = true;
-        this.lastPoint = { x: this.sketchpad.canvas.width * (e.clientX/this.sketchpad.canvas.offsetWidth), y: this.sketchpad.canvas.height * (e.clientY/this.sketchpad.canvas.offsetHeight)};
+        this.isDrawing = true
+        var raw
+        if (e.clientX !== undefined) {
+          raw = {x: e.clientX, y: e.clientY}
+        } else {
+          raw = {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY}
+        }
+
+        this.lastPoint = { x: this.sketchpad.canvas.width * (raw.x/this.sketchpad.canvas.offsetWidth), y: this.sketchpad.canvas.height * (raw.y/this.sketchpad.canvas.offsetHeight)};
         if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight < (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
           const blank = (this.sketchpad.canvas.offsetHeight - (this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))/2
-          this.lastPoint.y = this.sketchpad.canvas.height * ((e.clientY - blank)/(this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))
+          this.lastPoint.y = this.sketchpad.canvas.height * ((raw.y - blank)/(this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))
         }
         if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight > (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
           const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))/2
-          this.lastPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))
+          this.lastPoint.x = this.sketchpad.canvas.width * ((raw.x - blank)/(this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))
         }
 
         this.log('Key Down')
@@ -154,21 +161,26 @@
         this.socket.emit('geometry_start', {username: this.username})
       },
       sketchpad_mouseMove (e) {
-        if (!this.isDrawing) return;
-
+        if (!this.isDrawing) return
         var currentPoint = {};
+        var raw
+        if (e.clientX !== undefined) {
+          raw = {x: e.clientX, y: e.clientY}
+        } else {
+          raw = {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY}
+        }
 
         if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight < (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
           const blank = (this.sketchpad.canvas.offsetHeight - (this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))/2
-          currentPoint.y = this.sketchpad.canvas.height * ((e.clientY - blank)/(this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))
-          currentPoint.x = this.sketchpad.canvas.width * (e.clientX/this.sketchpad.canvas.offsetWidth)
+          currentPoint.y = this.sketchpad.canvas.height * ((raw.y - blank)/(this.sketchpad.canvas.offsetWidth*this.sketchpad.canvas.height/this.sketchpad.canvas.width))
+          currentPoint.x = this.sketchpad.canvas.width * (raw.x/this.sketchpad.canvas.offsetWidth)
         } else if (this.sketchpad.canvas.offsetWidth/this.sketchpad.canvas.offsetHeight > (this.sketchpad.canvas.width/this.sketchpad.canvas.height)) {
           const blank = (this.sketchpad.canvas.offsetWidth - (this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))/2
-          currentPoint.x = this.sketchpad.canvas.width * ((e.clientX - blank)/(this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))
-          currentPoint.y = this.sketchpad.canvas.height * (e.clientY/this.sketchpad.canvas.offsetHeight)
+          currentPoint.x = this.sketchpad.canvas.width * ((raw.x - blank)/(this.sketchpad.canvas.offsetHeight*this.sketchpad.canvas.width/this.sketchpad.canvas.height))
+          currentPoint.y = this.sketchpad.canvas.height * (raw.y/this.sketchpad.canvas.offsetHeight)
         } else {
-           currentPoint.x = this.sketchpad.canvas.width * (e.clientX/this.sketchpad.canvas.offsetWidth)
-           currentPoint.y = this.sketchpad.canvas.height * (e.clientY/this.sketchpad.canvas.offsetHeight)
+           currentPoint.x = this.sketchpad.canvas.width * (raw.x/this.sketchpad.canvas.offsetWidth)
+           currentPoint.y = this.sketchpad.canvas.height * (raw.y/this.sketchpad.canvas.offsetHeight)
         }
 
         currentPoint.x = Math.floor(currentPoint.x)

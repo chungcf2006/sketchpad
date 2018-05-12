@@ -9,9 +9,11 @@
           <b-button class="mode" key="create" variant="primary" @click="create()">Create</b-button>
         </div>
         <b-alert show v-if="mode === 'join'" key="join" class="detail-dialog">
-          <b-form-input v-model="roomNumber" class="roomNumber-input" type="text" placeholder="Enter Room Number"></b-form-input>
-          <b-button class="mode" variant="success" @click="joinRoom(roomNumber)">Join Room</b-button>
-          <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
+          <b-form @submit="joinRoom(roomNumber)">
+            <b-form-input v-model="roomNumber" pattern="\d*" class="roomNumber-input" type="text" placeholder="Enter Room Number"></b-form-input>
+            <b-button class="mode" variant="success" type="submit">Join Room</b-button>
+            <b-button class="mode" variant="secondary" @click="mode = undefined">Back</b-button>
+          </b-form>
         </b-alert>
         <b-alert show v-if="mode === 'create'" key="create" class="detail-dialog">
           <div>Your Room Number: <strong>{{newRoomNumber}}</strong></div>
